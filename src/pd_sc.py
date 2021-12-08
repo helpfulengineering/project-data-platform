@@ -47,8 +47,10 @@ a = SupplyNetwork("A",[c1,c2,l1,s1,b1])
 
 A1 = Supply("A_1",["A"],["B","C"],"no equation")
 B1 = Supply("B_1",["B"],[],"no equation")
+C1 = Supply("C_1",["C"],[],"no equation")
 
 ab = SupplyNetwork("AB",[A1,B1])
+abc = SupplyNetwork("ABC",[A1,B1,C1])
 # return all the types appearing the supply network
 def goodTypes(sn):
     return reduce(lambda a, b: frozenset.union(a,b),
@@ -131,9 +133,6 @@ class SupplyProblem:
         self.supplyNetwork = supplyNetwork
     # true if we could establish a new supply
     def newSupply(self):
-        print("new supply")
-        print(self.supIdx)
-        print(len(self.supplies))
         if (self.supIdx >= len(self.supplies)):
             return False
         self.inputToProblemIterator = {}
@@ -146,7 +145,6 @@ class SupplyProblem:
         self.inputIdx = 0 if self.supplies[self.supIdx].inputs else None
         # Because we have set a new supIdx, we start with a blank inputToTrees map
         self.inputToTrees = {}
-        print("DDD")
         return True
     def __iter__(self):
         self.currentTreesValid = False
@@ -192,38 +190,39 @@ class SupplyProblem:
     # This routine must advance either supIdx or inputIdx or
     # have successfully called next on a subproblem, or established
     # a subproblem which was not in place.
+    #
+    # This return a boolean on success
+    def advanceCurrentInputByOne(self):
+        input = next(x for i,x in enumerate(self.supplies[self.supIdx].inputs) if i==self.inputIdx)
+        # if the problem has not yet been created, try to create it
+        if not self.inputToBlank[input]:
+            self.inputToBlank[input] = True
+            return True
+        else:
+            try:
+                tree = next(self.inputToProblemIterator[input])
+                self.inputToTrees[input] = tree;
+                return True
+            except StopIteration:
+                return False
     def advanceExactlyOnce(self):
-        print("ADVANCE")
-        print(self.inputIdx)
+        print("ADVANCE ONCE",self.inputIdx)
         if (self.inputIdx is not None):
             while (self.inputIdx < len(self.supplies[self.supIdx].inputs)):
-                # Incredibly, this is the best way to do it Python (sigh.)
-                input = next(x for i,x in enumerate(self.supplies[self.supIdx].inputs) if i==self.inputIdx)
-                # if the problem has not yet been created, try to create it
-                print("Input:",input)
-                if not self.inputToBlank[input]:
-                    self.inputToBlank[input] = True
-                    print("Set input Blank to True",input)
-                    return True
-                else:
-                    try:
-                        print("Calling next on iterator:",input)
-                        tree = next(self.inputToProblemIterator[input])
-                        self.inputToTrees[input] = tree;
-                        print("SUCCESS!")
-                        return True
-                    except StopIteration:
-                        print("EXCEPTION",input)
-                        self.inputIdx = self.inputIdx + 1
-                        # reset all lower trees and problems
-                        print(enumerate(self.supplies[self.supIdx].inputs))
-                        for count,input in enumerate(self.supplies[self.supIdx].inputs):
+                success = self.advanceCurrentInputByOne()
+                print("tried to advance",self.inputIdx,"success:",success)
+                if success:
+                    # reset all lower trees and problems
+                    for count,input in enumerate(self.supplies[self.supIdx].inputs):
                             if count < self.inputIdx:
                                 self.inputToTrees[input] = None
                                 self.inputToProblemIterator[input] = iter(SupplyProblem(input,self.supplyNetwork))
                                 self.inputToBlank[input] = False
+                    self.inputIdx = 0 # here we start iterating from the the bottom again!
+                    return True
+                else:
+                    self.inputIdx = self.inputIdx + 1
         self.supIdx = self.supIdx + 1
-        print("Calling new Supply of advance",self.supIdx)
         return self.newSupply()
     # Note this is made more complicated by the fact that we want
     # to return all solutions, including those which are incomplete...
@@ -271,6 +270,10 @@ for st in list(SupplyProblem("chair",a)):
     print(st)
 
 for st in list(SupplyProblem("A",ab)):
+    print(st)
+
+abc_sp = iter(SupplyProblem("A",abc))
+for st in list(SupplyProblem("A",abc)):
     print(st)
 
 sp = SupplyProblem("chair",a)
