@@ -49,6 +49,11 @@ A1 = Supply("A_1",["A"],["B","C"],"no equation")
 B1 = Supply("B_1",["B"],[],"no equation")
 C1 = Supply("C_1",["C"],[],"no equation")
 
+X1 = Supply("X_1",["X"],["Y"],"no equation")
+Y1 = Supply("Y_1",["Y"],[],"no equation")
+
+xy = SupplyNetwork("XY",[X1,Y1])
+
 ab = SupplyNetwork("AB",[A1,B1])
 abc = SupplyNetwork("ABC",[A1,B1,C1])
 # return all the types appearing the supply network
@@ -98,7 +103,7 @@ class SupplyTree:
             return ' ' * numdiff + numerator + '\n' + '-' * charlen + '\n' + ' ' * demdiff + denominator + '\n' + subtrees
         else:
             charlen = len(numerator)
-            return numerator + '\n' + '-' * charlen + '\n'
+            return numerator + '\n' + '=' * charlen + '\n'
 
 # SupplyTree is consistent only if the Supplies in the inputDict match the type
 
@@ -140,7 +145,8 @@ class SupplyProblem:
             self.inputToProblemIterator[input] = iter(SupplyProblem(input,self.supplyNetwork))
             ## I don't belive this can be correct --- we have to ask ask the SupplyProblem where it stands!!
             ## Or, when we call next on it and we fails, we have to not count that as advancing at all!
-            self.inputToBlank[input] = False
+#            self.inputToBlank[input] = False
+            self.inputToBlank[input] = True
         # Really, Pythonistas? This is how you make a ternary expression? (sigh).
         self.inputIdx = 0 if self.supplies[self.supIdx].inputs else None
         # Because we have set a new supIdx, we start with a blank inputToTrees map
@@ -180,7 +186,7 @@ class SupplyProblem:
         # return SupplyTree(self.supplies[self.supIdx],self.inputToTrees)
         for i in self.supplies[self.supIdx].inputs:
             # This must support inputToTrees being empty
-            if i in self.inputToTrees and self.inputToTrees[i] is not None:
+            if i in self.inputToTrees and (self.inputToTrees[i] is not None):
                 d[i] = self.inputToTrees[i]
         return SupplyTree(self.supplies[self.supIdx],d)
     # This the trickiest part. We attempt to iterate the inputIdx
@@ -206,18 +212,17 @@ class SupplyProblem:
             except StopIteration:
                 return False
     def advanceExactlyOnce(self):
-        print("ADVANCE ONCE",self.inputIdx)
         if (self.inputIdx is not None):
             while (self.inputIdx < len(self.supplies[self.supIdx].inputs)):
                 success = self.advanceCurrentInputByOne()
-                print("tried to advance",self.inputIdx,"success:",success)
                 if success:
                     # reset all lower trees and problems
                     for count,input in enumerate(self.supplies[self.supIdx].inputs):
                             if count < self.inputIdx:
                                 self.inputToTrees[input] = None
                                 self.inputToProblemIterator[input] = iter(SupplyProblem(input,self.supplyNetwork))
-                                self.inputToBlank[input] = False
+                                # self.inputToBlank[input] = False
+                                self.inputToBlank[input] = True
                     self.inputIdx = 0 # here we start iterating from the the bottom again!
                     return True
                 else:
@@ -228,7 +233,6 @@ class SupplyProblem:
     # to return all solutions, including those which are incomplete...
     # That makes this a little harder to think about.
     def __next__(self):
-        print("NEXT: ",self.good,self.currentTreesValid)
         if self.currentTreesValid:
             # If the currentTrees are valid, we want to generate a SupplyTree
             # to return, and then advance our iteration
@@ -238,7 +242,6 @@ class SupplyProblem:
             # this is easy. When it fails, we have to move "up".
             # If all fail, we are no longer valid.
             self.currentTreesValid = self.advanceExactlyOnce()
-            print("RETURNING",self.good,self.currentTreesValid)
             return currentTree
         else:
             raise StopIteration
@@ -246,7 +249,7 @@ class SupplyProblem:
 # This case is returning no values!
 
 fs = frozenset(["a","b","c"])
-
+con
 next(x for i,x in enumerate(fs) if i==0)
 
 for e in enumerate(frozenset(["a","b"])):
@@ -275,6 +278,13 @@ for st in list(SupplyProblem("A",ab)):
 abc_sp = iter(SupplyProblem("A",abc))
 for st in list(SupplyProblem("A",abc)):
     print(st)
+
+for st in list(SupplyProblem("X",xy)):
+    print(st)
+for st in list(SupplyProblem("Y",xy)):
+    print(st)
+
+xyi = iter(SupplyProblem("X",xy))
 
 sp = SupplyProblem("chair",a)
 i = iter(sp)
