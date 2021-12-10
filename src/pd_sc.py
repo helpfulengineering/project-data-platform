@@ -32,18 +32,32 @@ class Supply:
 
 # A vary basic set of supplies...
 # Possibly we should create anonymous supply signatures...
+# These are effectively hard-coded OKH elements; we may
+# eventually have a way to import OKHs.
+# TODO: Shift seat to "Frame, stuffing, upholstery"
+# TODO: Shift to a mask
 c1 = Supply("chair_1",["chair"],["leg","seat","back"],"no equation yet")
 c2 = Supply("chair_2",["chair"],["leg","seat","back"],"no equation yet")
 l1 = Supply("leg_1",["leg"],[],"no equation yet")
 s1 = Supply("seat_1",["seat"],[],"no equation yet")
+s2 = Supply("seat_2",["seat"],["fabric","plane"],"no equation yet")
+s3 = Supply("seat_3",["seat"],["frame","stuffing","upholstery"],"no equation yet")
+ss1 = Supply("stuffing_1",["stuffing"],[],"no equation yet")
 b1 = Supply("back_1",["back"],[],"no equation yet")
+f1 = Supply("fabric_1",["fabric"],[],"no equation yet")
+p1 = Supply("plane_1",["plane"],[],"no equation yet")
+
+
 
 class SupplyNetwork:
     def __init__(self,name,supplies):
         self.name = name
         self.supplies = supplies
 
-a = SupplyNetwork("A",[c1,c2,l1,s1,b1])
+def unionSupplyNetworks(a,b):
+    return SupplyNetwork(a.name + "|" + b.name,a.supplies + b.supplies)
+
+a = SupplyNetwork("A",[c1,c2,l1,s1,b1,s2,f1,p1,s3,ss1])
 
 A1 = Supply("A_1",["A"],["B","C"],"no equation")
 B1 = Supply("B_1",["B"],[],"no equation")
@@ -58,7 +72,7 @@ ab = SupplyNetwork("AB",[A1,B1])
 abc = SupplyNetwork("ABC",[A1,B1,C1])
 # return all the types appearing the supply network
 def goodTypes(sn):
-    return reduce(lambda a, b: frozenset.union(a,b),
+    return reduce(lambda a, b: frozensetunion(a,b),
                   map(lambda a: frozenset.union(a.inputs,a.outputs),sn.supplies))
 
 goodTypes(a)
@@ -86,6 +100,17 @@ class SupplyTree:
     def __init__(self,supply,inputDict):
         self.supply = supply
         self.inputDict = inputDict
+    def incompleteGoods(self):
+        missingGoods = []
+        for v in self.supply.inputs:
+            if v in self.inputDict:
+                missingGoods = missingGoods + self.inputDict[v].incompleteGoods()
+            else:
+                missingGoods.append(v)
+        return missingGoods
+    def isComplete(self):
+        missingGoods = self.incompleteGoods()
+        return not missingGoods
     # my initial printing will just take the subtrees and
     # place this node above them.
     def __str__(self):
@@ -143,10 +168,6 @@ class SupplyProblem:
         self.inputToProblemIterator = {}
         for input in self.supplies[self.supIdx].inputs:
             self.inputToProblemIterator[input] = iter(SupplyProblem(input,self.supplyNetwork))
-            ## I don't belive this can be correct --- we have to ask ask the SupplyProblem where it stands!!
-            ## Or, when we call next on it and we fails, we have to not count that as advancing at all!
-#            self.inputToBlank[input] = False
-            self.inputToBlank[input] = True
         # Really, Pythonistas? This is how you make a ternary expression? (sigh).
         self.inputIdx = 0 if self.supplies[self.supIdx].inputs else None
         # Because we have set a new supIdx, we start with a blank inputToTrees map
@@ -158,11 +179,6 @@ class SupplyProblem:
         self.inputIdx = -1 # This is invalid until we have inputs
         self.inputToTrees = {}
         self.inputToProblemIterator = {}
-        # This is a boolean that marks if we have produces a tree
-        # treating this Problm as missing yet (true); we treating a missing
-        # supply tree as the FIRST state of the iteration over the
-        # recursively accessed supplyProblems.
-        self.inputToBlank = {}
         # Note: This may materialize all entries, which is not what we want.
         self.supplies = list(allSupplies(self.good,self.supplyNetwork))
         # We will retain an index to which supply we are on...
@@ -201,16 +217,12 @@ class SupplyProblem:
     def advanceCurrentInputByOne(self):
         input = next(x for i,x in enumerate(self.supplies[self.supIdx].inputs) if i==self.inputIdx)
         # if the problem has not yet been created, try to create it
-        if not self.inputToBlank[input]:
-            self.inputToBlank[input] = True
+        try:
+            tree = next(self.inputToProblemIterator[input])
+            self.inputToTrees[input] = tree;
             return True
-        else:
-            try:
-                tree = next(self.inputToProblemIterator[input])
-                self.inputToTrees[input] = tree;
-                return True
-            except StopIteration:
-                return False
+        except StopIteration:
+            return False
     def advanceExactlyOnce(self):
         if (self.inputIdx is not None):
             while (self.inputIdx < len(self.supplies[self.supIdx].inputs)):
@@ -221,8 +233,6 @@ class SupplyProblem:
                             if count < self.inputIdx:
                                 self.inputToTrees[input] = None
                                 self.inputToProblemIterator[input] = iter(SupplyProblem(input,self.supplyNetwork))
-                                # self.inputToBlank[input] = False
-                                self.inputToBlank[input] = True
                     self.inputIdx = 0 # here we start iterating from the the bottom again!
                     return True
                 else:
@@ -245,6 +255,9 @@ class SupplyProblem:
             return currentTree
         else:
             raise StopIteration
+    def completeSupplyTrees(self):
+        allTrees = list(iter(self))
+        return filter(lambda a: a.isComplete(),allTrees)
 
 # This case is returning no values!
 
@@ -272,6 +285,8 @@ con_st = next(ab_sp)
 for st in list(SupplyProblem("chair",a)):
     print(st)
 
+len(list(iter(SupplyProblem("chair",a))))
+
 for st in list(SupplyProblem("A",ab)):
     print(st)
 
@@ -290,3 +305,78 @@ sp = SupplyProblem("chair",a)
 i = iter(sp)
 print(next((x for i,x in enumerate(SupplyProblem("chair",a)) if i==0), None))
 print(next((x for i,x in enumerate(SupplyProblem("chair",a)) if i==1), None))
+
+
+# Print only those SupplyTrees which are complete in the "chair" problem
+for st in list(SupplyProblem("chair",a).completeSupplyTrees()):
+    print(st)
+
+
+# Now attempting to model a OKH and OKW class, though we may make these
+# more generic. An important aspect is that these should be able to
+# read the YAML definitions of those objects as imports. However,
+# we will postpone implementing that.
+
+# The basic concept is that an OKW can produce a Supply for a good
+# if it there is an OKH for it and it has the tooling (which we
+# will not attempt to represent perfectly at first.) A collection
+# of OKWs and OKHs then becomes a SupplyNetwork, or can produce
+# Supply objects to be added to some other SupplyNetwork.
+
+class OKH:
+    # At first this looks ridiculously like a supply, but
+    # over time we will provide other methods
+    def __init__(self,name,outputs,inputs,requiredTooling,eqn):
+        self.name = name
+        self.outputs = frozenset(outputs)
+        self.inputs = frozenset(inputs)
+        self.requiredTooling = frozenset(requiredTooling)
+        self.eqn = eqn
+
+class OKW:
+    def __init__(self,name,toolingGoods):
+        self.name = name
+        self.tooling = frozenset(toolingGoods)
+    def hasToolingFor(self,okh):
+        # This is over simple, but we will just require that
+        # all requiredTooling be in our tooling
+        for tool in okh.requiredTooling:
+            if tool not in self.tooling:
+                return False
+        return True
+
+
+
+# And OKF is a collection of OKHs and OKWs which in particular
+# allows you to compute Supplies
+class OKF:
+    def __init__(self,name,okhs,okws):
+        self.name = name
+        self.okhs = okhs
+        self.okws = okws
+    def supplies(self):
+        # Roughly speaking we can produce a Supply named by
+        # the okw,good pair whenever the okw has the "tooling"
+        # for the okh.
+        ss = []
+        for w in self.okws:
+            for h in self.okhs:
+                if w.hasToolingFor(h):
+                    name = w.name + "|" + h.name
+                    ss.append(Supply(name,h.outputs,h.inputs,h.eqn))
+        return ss
+
+okh1 = OKH("SurgeMask",["mask"],["NWPP","coffee_tin_ties","fabric_ties"],["sewing_machine"],"no eqn yet")
+
+okw1 = OKW("NearJames",["sewing_machine"])
+
+okf1 = OKF("okf1",[okh1],[okw1])
+
+# Now create a SupplyNetwork from the okf, and union it with
+# our non-OKF supplies..
+
+okf_sn = SupplyNetwork("fromOKF",okf1.supplies())
+combined = unionSupplyNetworks(a,okf_sn)
+
+for st in list(SupplyProblem("mask",okf_sn)):
+    print(st)
