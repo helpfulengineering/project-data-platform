@@ -21,8 +21,15 @@
 
 
 from functools import reduce
+from sympy import *
+
 import pprint
 
+# Note: I'm using the name eqn, here but possibly
+# an expression is better (but in any case we will use the SymPy pacakges.
+# Note an invariant (currently unchecked) is that the eqn should have the same number
+# of sybols as the inputs (or that + 1) and the names should match.
+# It would be better if we asserted that cleanly
 class Supply:
     def __init__(self,name,outputs,inputs,eqn):
         self.name = name
@@ -30,24 +37,51 @@ class Supply:
         self.outputs = frozenset(outputs)
         self.eqn = eqn
 
+
+
+
 # A vary basic set of supplies...
+
+# We will first create "symbols" (similar to Intern with LISP)
+chair,leg,seat,back = symbols("chair leg seat back")
+fabric,plane = symbols("fabric plane")
+frame,stuffing = symbols("frame stuffing")
+upholstery = symbols("upholstery")
+
+# These are more or "supplier" constants
+chair_1,chair_2,leg_1,seat_1,seat_2,seat_3 = symbols("chair_1 chair_2 leg_1 seat_1 seat_2 seat_3")
+back_1,fabric_1,plane_1 = symbols("back_1 fabric_1 plane_1")
+stuffing_1 = symbols("stuffing_1")
+
+# This makes more sense as a dictionary;
+# However, the SymPy package uses a list of pairs (symbol, expression).
+price_map = [(chair_1,4),
+             (chair_2,3),
+             (leg_1,1),
+             (seat_1,2),
+             (seat_2,2),
+             (seat_3,3),
+             (back_1,3),
+             (fabric_1,1),
+             (plane_1,1),
+             (stuffing_1,2)]
+
+
 # Possibly we should create anonymous supply signatures...
 # These are effectively hard-coded OKH elements; we may
 # eventually have a way to import OKHs.
 # TODO: Shift seat to "Frame, stuffing, upholstery"
 # TODO: Shift to a mask
-c1 = Supply("chair_1",["chair"],["leg","seat","back"],"no equation yet")
-c2 = Supply("chair_2",["chair"],["leg","seat","back"],"no equation yet")
-l1 = Supply("leg_1",["leg"],[],"no equation yet")
-s1 = Supply("seat_1",["seat"],[],"no equation yet")
-s2 = Supply("seat_2",["seat"],["fabric","plane"],"no equation yet")
-s3 = Supply("seat_3",["seat"],["frame","stuffing","upholstery"],"no equation yet")
-ss1 = Supply("stuffing_1",["stuffing"],[],"no equation yet")
-b1 = Supply("back_1",["back"],[],"no equation yet")
-f1 = Supply("fabric_1",["fabric"],[],"no equation yet")
-p1 = Supply("plane_1",["plane"],[],"no equation yet")
-
-
+c1 = Supply("chair_1",["chair"],["leg","seat","back"],chair_1 + 4*leg + seat + back)
+c2 = Supply("chair_2",["chair"],["leg","seat","back"],chair_2 + 4*leg + seat + back)
+l1 = Supply("leg_1",["leg"],[],leg_1)
+s1 = Supply("seat_1",["seat"],[],seat_1)
+s2 = Supply("seat_2",["seat"],["fabric","plane"],seat_2 + fabric + plane)
+s3 = Supply("seat_3",["seat"],["frame","stuffing","upholstery"],seat_3 + frame + stuffing + upholstery)
+ss1 = Supply("stuffing_1",["stuffing"],[],stuffing_1)
+b1 = Supply("back_1",["back"],[],back_1)
+f1 = Supply("fabric_1",["fabric"],[],fabric_1)
+p1 = Supply("plane_1",["plane"],[],plane_1)
 
 class SupplyNetwork:
     def __init__(self,name,supplies):
@@ -59,12 +93,15 @@ def unionSupplyNetworks(a,b):
 
 a = SupplyNetwork("A",[c1,c2,l1,s1,b1,s2,f1,p1,s3,ss1])
 
-A1 = Supply("A_1",["A"],["B","C"],"no equation")
-B1 = Supply("B_1",["B"],[],"no equation")
-C1 = Supply("C_1",["C"],[],"no equation")
+A,B,C,X,Y = symbols("A B C X Y")
+A_1,B_1,C_1,X_1,Y_1 = symbols("A_1 B_1 C_1 X_1 Y_1")
 
-X1 = Supply("X_1",["X"],["Y"],"no equation")
-Y1 = Supply("Y_1",["Y"],[],"no equation")
+A1 = Supply("A_1",["A"],["B","C"],A_1 + B + C )
+B1 = Supply("B_1",["B"],[],B_1)
+C1 = Supply("C_1",["C"],[],C_1)
+
+X1 = Supply("X_1",["X"],["Y"],X_1+Y)
+Y1 = Supply("Y_1",["Y"],[],Y_1)
 
 xy = SupplyNetwork("XY",[X1,Y1])
 
@@ -72,7 +109,7 @@ ab = SupplyNetwork("AB",[A1,B1])
 abc = SupplyNetwork("ABC",[A1,B1,C1])
 # return all the types appearing the supply network
 def goodTypes(sn):
-    return reduce(lambda a, b: frozensetunion(a,b),
+    return reduce(lambda a, b: frozenset.union(a,b),
                   map(lambda a: frozenset.union(a.inputs,a.outputs),sn.supplies))
 
 goodTypes(a)
@@ -136,15 +173,31 @@ sx = SupplyTree(c1,{"leg": SupplyTree(l1,{}),
                     "seat": SupplyTree(s1,{}),
                     "back": SupplyTree(b1,{})})
 
-def checkConsistency(s):
-    for key in s.inputDict:
-        if key not in s.inputDict[key].supply.outputs:
+# TODO: We could add Equational consistency to this
+def checkConsistency(supplyTree):
+    for key in supplyTree.inputDict:
+        if key not in supplyTree.inputDict[key].supply.outputs:
             return False
         else:
-            return checkConsistency(s.inputDict[key])
+            return checkConsistency(supplyTree.inputDict[key])
     return True
 
 checkConsistency(sx)
+
+# Return the characteristic equation of this supplyTree by using
+# substitutions on the equations of supply
+# For now this code will make the assumption there is only one good
+# and it is the first of the outputs.
+def characteristicExpression(supplyTree):
+    pairs = []
+    good = next(iter(supplyTree.supply.outputs))
+    for key in supplyTree.inputDict:
+        old = symbols(key)
+        new = characteristicExpression(supplyTree.inputDict[key])
+        pairs.append((old,new))
+    return supplyTree.supply.eqn.subs(pairs)
+
+
 
 # Now we define a SupplyProblem to be a desired type and
 # SupplyNetwork. There are lots of things you can ask of
@@ -258,29 +311,20 @@ class SupplyProblem:
     def completeSupplyTrees(self):
         allTrees = list(iter(self))
         return filter(lambda a: a.isComplete(),allTrees)
+    # f is the function to be optimized
+    def optimalCompleteSupplyTrees(self,f):
+        cTrees = self.completeSupplyTrees()
+        m = None
+        minE = None
+        for tree in cTrees:
+            v = f(tree)
+            if m is None or v < m:
+                m = v
+                minE = tree
+        return (tree,m)
+    def optimalCompleteSupplyTreeByPrice(self,priceMap):
+        return self.optimalCompleteSupplyTrees((lambda s: characteristicExpression(s).subs(priceMap)))
 
-# This case is returning no values!
-
-fs = frozenset(["a","b","c"])
-con
-next(x for i,x in enumerate(fs) if i==0)
-
-for e in enumerate(frozenset(["a","b"])):
-    print(e)
-
-list(SupplyProblem("legx",a))
-list(SupplyProblem("leg",a))
-print(list(SupplyProblem("leg",a))[0])
-print(list(SupplyProblem("chair",a)))
-list(SupplyProblem("chair",a))[1]
-
-spci = iter(SupplyProblem("chair",a))
-print(next(spci))
-print(next(spci))
-
-b_sp = iter(SupplyProblem("B",ab))
-ab_sp = iter(SupplyProblem("A",ab))
-con_st = next(ab_sp)
 
 for st in list(SupplyProblem("chair",a)):
     print(st)
@@ -310,6 +354,10 @@ print(next((x for i,x in enumerate(SupplyProblem("chair",a)) if i==1), None))
 # Print only those SupplyTrees which are complete in the "chair" problem
 for st in list(SupplyProblem("chair",a).completeSupplyTrees()):
     print(st)
+    print(characteristicExpression(st))
+    print(characteristicExpression(st).subs(price_map))
+
+print(SupplyProblem("chair",a).optimalCompleteSupplyTreeByPrice(price_map))
 
 
 # Now attempting to model a OKH and OKW class, though we may make these
