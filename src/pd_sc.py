@@ -51,6 +51,7 @@ upholstery = symbols("upholstery")
 # These are more or "supplier" constants
 chair_1,chair_2,leg_1,seat_1,seat_2,seat_3 = symbols("chair_1 chair_2 leg_1 seat_1 seat_2 seat_3")
 back_1,fabric_1,plane_1 = symbols("back_1 fabric_1 plane_1")
+fabric_2 = symbols("fabric_2")
 stuffing_1 = symbols("stuffing_1")
 
 # This makes more sense as a dictionary;
@@ -81,6 +82,7 @@ s3 = Supply("seat_3",["seat"],["frame","stuffing","upholstery"],seat_3 + frame +
 ss1 = Supply("stuffing_1",["stuffing"],[],stuffing_1)
 b1 = Supply("back_1",["back"],[],back_1)
 f1 = Supply("fabric_1",["fabric"],[],fabric_1)
+f2 = Supply("fabric_2",["fabric"],[],fabric_2)
 p1 = Supply("plane_1",["plane"],[],plane_1)
 
 class SupplyNetwork:
@@ -456,21 +458,53 @@ class StageGraph:
         # However, a StageGraph has a history, in a way that a SupplyTree doesn't.
         self.curSupply = supplyTree.supply
         self.good = good
-        # The history will be a dictionary that maps inputs to lists of
-        # StageGraphs. They have to be list to handle the case of the same
-        # input failing multiple times
-        self.repaired = {}
+        # The history will be list of previous supplyTrees attempted for this
+        # node. If this node is changed, the old StageGraph goes into this list
+        self.repaired = []
         self.inputDict = {}
         for key in supplyTree.inputDict:
             self.inputDict[key] = StageGraph(key,supplyTree.inputDict[key])
         self.currentStatus = StageStatus.OPEN
+    def isComplete(self):
+        return self.currentStatus == StageStatus.SUCCEEDED
+    def nameOfSupplyThatNeedsRepair(self):
+        if (self.currentStatus == StageStatus.FAILED):
+            return self.curSupply.name
+        else:
+            for key in self.inputDict:
+                thisOneNeedsRepair = self.inputDict[key].nameOfSupplyThatNeedsRepair()
+                if thisOneNeedsRepair is not None:
+                    return thisOneNeedsRepair
+            return None
+    def needsRepair(self):
+        return self.nameOfSupplyThatNeedsRepair() is not None
     def assertSupplyStatus(self,supplyName,status):
         if (supplyName == self.curSupply.name):
             self.currentStatus = status
             return True
         else:
+            found = False
             for key in self.inputDict:
-                self.inputDict[key].assertSupplyStatus(supplyName,status)
+                foundThisOne = self.inputDict[key].assertSupplyStatus(supplyName,status)
+                found = found or foundThisOne
+            return found
+    # Replace the named with a new supply, and set the status to open
+    # This returns
+    def repair(self,supplyName,newSupplyTree):
+        # First find if if the supplyName exists
+        if (supplyName == self.curSupply.name):
+            self.repaired.append(self)
+            self.curSupply = newSupplyTree.supply
+            for key in newSupplyTree.inputDict:
+                self.inputDict[key] = StageGraph(key,newSupplyTree.inputDict[key])
+            self.currentStatus = StageStatus.OPEN
+            return True
+        else:
+            found = False
+            for key in self.inputDict:
+                foundThisOne = self.inputDict[key].repair(supplyName,newSupplyTree)
+                found = found or foundThisOne
+            return found
     def __str__(self):
         # if the inputDict is empty, we can render without a line!
         numerator = self.curSupply.name + "/" + str(self.currentStatus.name)
@@ -491,10 +525,30 @@ class StageGraph:
             return numerator + '\n' + '=' * charlen + '\n'
 
 
-sg = StageGraph("chair",sx)
-sg.assertSupplyStatus("back_1",StageStatus.FAILED)
+sgc = StageGraph("chair",sx)
+sgc.assertSupplyStatus("seat_1",StageStatus.FAILED)
+print(sgc.isComplete())
+print(sgc.needsRepair())
+print(sgc.nameOfSupplyThatNeedsRepair())
 print(sg)
+st_seat_1 = SupplyTree(s1,{"fabric": SupplyTree(f1,{}),
+                           "plane": SupplyTree(p1,{})})
+st_seat_2 = SupplyTree(s2,{"fabric": SupplyTree(f1,{}),
+                           "plane": SupplyTree(p1,{})})
 
+st_fabric_2 = SupplyTree(f2,{})
+
+sg = StageGraph("seat",st_seat_2)
+sg.repair("fabric_1",st_fabric_2)
+print(st_seat_2)
+
+sgc = StageGraph("chair",sx)
+sgc.repair("seat_1",st_seat_2)
+print(sgc)
+
+# Now I suppose we should right a function that tells of the order
+# is StageGraph is complete, and test by randomly completing orders
+# from the bottom up until it is true.
 
 
 
