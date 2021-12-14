@@ -428,3 +428,78 @@ combined = unionSupplyNetworks(a,okf_sn)
 
 for st in list(SupplyProblem("mask",okf_sn)):
     print(st)
+
+# Now beginning working on the order concept
+# A basic approach is that a an order can be generated from a SupplyTree,
+# in that a StageGraph is very similar to a Supply Tree.
+# A StageGraph can be considered a SupplyTree decorated by human assertions and
+# boolean conditions. The fundamental operations on a StageGraph
+# are to advance conditions with assertions, and to compute what needs
+# to be advanced. Our eventual goal is to be able to repair and order
+# by changing the SupplyTree in some way. So our new types are:
+# StageAssertion
+# StageGraph
+# Order
+
+from enum import Enum
+class StageStatus(Enum):
+    OPEN = 0
+    SUCCEEDED  = 1
+    FAILED = 2
+
+
+class StageGraph:
+    def __init__(self,good,supplyTree):
+        # Now we want to do a deep copy of the supplyTree,
+        # but add in a decoration. We could make this recursive, so we are doing
+        # it all at each level. I suppose that is best.
+        # However, a StageGraph has a history, in a way that a SupplyTree doesn't.
+        self.curSupply = supplyTree.supply
+        self.good = good
+        # The history will be a dictionary that maps inputs to lists of
+        # StageGraphs. They have to be list to handle the case of the same
+        # input failing multiple times
+        self.repaired = {}
+        self.inputDict = {}
+        for key in supplyTree.inputDict:
+            self.inputDict[key] = StageGraph(key,supplyTree.inputDict[key])
+        self.currentStatus = StageStatus.OPEN
+    def assertSupplyStatus(self,supplyName,status):
+        if (supplyName == self.curSupply.name):
+            self.currentStatus = status
+            return True
+        else:
+            for key in self.inputDict:
+                self.inputDict[key].assertSupplyStatus(supplyName,status)
+    def __str__(self):
+        # if the inputDict is empty, we can render without a line!
+        numerator = self.curSupply.name + "/" + str(self.currentStatus.name)
+        if (self.repaired):
+            numerator = numerator + " REPAIRED"
+        if (self.inputDict):
+            subtrees = "".join(map(str,self.inputDict.values()))
+            labels = []
+            for (k, v) in iter(self.inputDict.items()):
+                labels.append(k + ':' + str(v.curSupply.name))
+            denominator = ",".join(labels)
+            charlen = max(len(denominator),len(numerator))
+            numdiff = max(charlen - len(numerator),0)//2
+            demdiff = max(charlen - len(denominator),0)//2
+            return ' ' * numdiff + numerator + '\n' + '-' * charlen + '\n' + ' ' * demdiff + denominator + '\n' + subtrees
+        else:
+            charlen = len(numerator)
+            return numerator + '\n' + '=' * charlen + '\n'
+
+
+sg = StageGraph("chair",sx)
+sg.assertSupplyStatus("back_1",StageStatus.FAILED)
+print(sg)
+
+
+
+
+
+class Order:
+    def __init__(self,supplyTree):
+        self.supplyTree = supplyTree
+        self.stageGraph = StageGraph(self.supplyTree)
