@@ -181,8 +181,35 @@ print(sgc)
 o1 = Order("chair",sx)
 
 import unittest
+import copy
 
 # This code assumes the existence of our "standard" symbols from supply
+class TestStageGraph(unittest.TestCase):
+    def test_canGetMultipleRepairableNodes_AndFindSubstituions(self):
+        sx = SupplyTree(c1,{"leg": SupplyTree(l1,{}),
+                            "seat": SupplyTree(s1,{}),
+                            "back": SupplyTree(b1,{})})
+        sgc = StageGraph("chair",sx)
+        sgc.scratch("leg_1")
+        sgc.scratch("seat_1")
+        nms = sgc.namesOfAllSuppliesThatNeedRepair()
+        self.assertEqual(len(nms),2)
+        # WARNING! The symbol "a" is global to this test!! We need more discipline.
+        # We need a way to filter out those substutions which are in fact
+        # scratched; that is the identity substitution, though valid at
+        # one level, is not what we want!
+        # The easiest way is to remove them from the supply network
+        scratched = copy.deepcopy(a)
+        scratched.scratch("leg_1")
+        scratched.scratch("seat_1")
+        subs = findAllSubstitutions(scratched,sgc)
+        # How do we know this? this is not a good test!
+        self.assertEqual(len(subs),1)
+        self.assertEqual(subs[0].a,"seat_1")
+        # What we really need to do is to perform each substitution and make
+        # sure each is somehow better.
+    def bifurcatedSupplyNetworksAreFullyRepairable():
+
 class TestOrder(unittest.TestCase):
     def test_canAdvanceOrderToCompletion(self):
         sx = SupplyTree(c1,{"leg": SupplyTree(l1,{}),
@@ -193,5 +220,11 @@ class TestOrder(unittest.TestCase):
         while(sg is not None):
             sg = o1.advanceOne()
         self.assertTrue(o1.stageGraph.isComplete())
+
+import copy
+scratched = copy.deepcopy(a)
+scratched.scratch("leg_1")
+for s in scratched.supplies:
+    print(s)
 
 unittest.main(exit=False)

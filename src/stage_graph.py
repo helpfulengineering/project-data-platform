@@ -53,6 +53,9 @@ class StageGraph:
     def isComplete(self):
         return self.currentStatus == StageStatus.SUCCEEDED
     def nameOfSupplyThatNeedsRepair(self):
+        # This only returns one; we may need a version that returns
+        # several, but we need not consider a FAILED node below
+        # another node that is FAILED (at least because of a supply!)
         if (self.currentStatus == StageStatus.FAILED):
             return self.curSupply.name
         else:
@@ -61,6 +64,15 @@ class StageGraph:
                 if thisOneNeedsRepair is not None:
                     return thisOneNeedsRepair
             return None
+    def namesOfAllSuppliesThatNeedRepair(self):
+        names = []
+        if (self.currentStatus == StageStatus.FAILED):
+            names.append(self.curSupply.name)
+        else:
+            for key in self.inputDict:
+                allNames = self.inputDict[key].namesOfAllSuppliesThatNeedRepair()
+                names += allNames
+        return names
     def needsRepair(self):
         return self.nameOfSupplyThatNeedsRepair() is not None
     def assertSupplyStatus(self,supplyName,status):
@@ -73,6 +85,23 @@ class StageGraph:
                 foundThisOne = self.inputDict[key].assertSupplyStatus(supplyName,status)
                 found = found or foundThisOne
             return found
+    def scratch(self,supplyName):
+        # A convenience function for "scratching a supplier"
+        self.assertSupplyStatus(supplyName,StageStatus.FAILED)
+    # Return a (sub) StageGraph based on name
+    def findStageGraphByName(self,supplyName):
+        # WARNING: It is not entirely clear this is unique.
+        if supplyName == self.curSupply.name:
+            return self
+        else:
+            for key in self.inputDict:
+                foundThisOne = self.inputDict[key].findStageGraphByName(supplyName)
+                if foundThisOne:
+                    return foundThisOne
+        return None
+    def findGoodSuppliedByName(self,supplyName):
+        sg = self.findStageGraphByName(supplyName)
+        return sg.good
     # Replace the named with a new supply, and set the status to open
     # This returns
     def repair(self,supplyName,newSupplyTree):
@@ -108,6 +137,36 @@ class StageGraph:
         else:
             charlen = len(numerator)
             return numerator + '\n' + '=' * charlen + '\n'
+
+# This is just a formalization of a structure that replaces
+# one symbol with another for clarity. The symbol package
+# deals this this as a list of tuples; that might be better.
+# This means that name_b is substituted in for name_a
+class SubstSupply:
+    def __init__(self,name_a,name_b):
+        self.a = name_a
+        self.b = name_b
+    def __str__(self):
+        return self.a + "->" + self.b
+
+# Return a list of substitutions
+def findAllSubstitutions(sn,sg):
+    # Return all complete substitutions possible from the sn network in the sg
+    # This may be an expensive operation.
+    # A basic approach is to find all highest-level failures,
+    # and then just compute all supplyTrees for that good that we can,
+    # and construct substitutions for that.
+    subs = []
+    highestLevelNeeedsRepair = sg.namesOfAllSuppliesThatNeedRepair()
+    for nm in highestLevelNeeedsRepair:
+        # Now we need to find the good associated with this name
+        # in the stage_graph
+        good = sg.findGoodSuppliedByName(nm)
+        for st in list(SupplyProblem(good,sn).completeSupplyTrees()):
+            subs.append(SubstSupply(nm,st.supply.name))
+    return subs
+
+
 
 # Now I suppose we should write a function that tells if the order
 # is StageGraph is complete, and test by randomly completing orders
