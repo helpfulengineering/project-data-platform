@@ -30,8 +30,6 @@ class Supply:
         self.outputs = frozenset(outputs)
         self.eqn = eqn
 
-
-
 class SupplyNetwork:
     def __init__(self,name,supplies):
         self.name = name
@@ -41,10 +39,6 @@ class SupplyNetwork:
         for c in self.supplies:
             if c.name == supplyName:
                 self.supplies.remove(c)
-
-
-
-
 
 def unionSupplyNetworks(a,b):
     return SupplyNetwork(a.name + "|" + b.name,a.supplies + b.supplies)

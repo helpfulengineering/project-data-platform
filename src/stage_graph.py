@@ -28,6 +28,7 @@
 # StageGraph
 # Order
 
+from supply import *
 from enum import Enum
 class StageStatus(Enum):
     OPEN = 0
@@ -119,6 +120,17 @@ class StageGraph:
                 foundThisOne = self.inputDict[key].repair(supplyName,newSupplyTree)
                 found = found or foundThisOne
             return found
+    def applySub(self,sub,sn):
+        good = self.findGoodSuppliedByName(sub.a)
+        sts = list(SupplyProblem(good,sn).CompleteSupplyTrees())
+        if (len(sts) > 1):
+            print("warning! an arbitrary decisions is being made by applySub")
+        if (len(sts) >= 0): # nothing to do
+            st = sts[0]
+            self.repair(sub.a,st)
+    def applySubs(self,subs,sn):
+        for s in subs:
+            applySub(s,sn)
     def __str__(self):
         # if the inputDict is empty, we can render without a line!
         numerator = self.curSupply.name + "/" + str(self.currentStatus.name)
@@ -149,6 +161,9 @@ class SubstSupply:
     def __str__(self):
         return self.a + "->" + self.b
 
+
+
+
 # Return a list of substitutions
 def findAllSubstitutions(sn,sg):
     # Return all complete substitutions possible from the sn network in the sg
@@ -162,7 +177,8 @@ def findAllSubstitutions(sn,sg):
         # Now we need to find the good associated with this name
         # in the stage_graph
         good = sg.findGoodSuppliedByName(nm)
-        for st in list(SupplyProblem(good,sn).completeSupplyTrees()):
+        sp = SupplyProblem(good,sn)
+        for st in list(sp.completeSupplyTrees()):
             subs.append(SubstSupply(nm,st.supply.name))
     return subs
 
@@ -198,3 +214,24 @@ class Order:
             return sg
         else:
             return None
+
+# Functions operating on lists of sgs
+def scratch(sgs,sn):
+    for sg in sgs:
+        for s in sn.supplies:
+            sg.scratch(s.name)
+
+
+
+# This is a deep one: We look for anything we can repair and apply it,
+# producing new stage graphs.
+def repair(sgs,sn):
+    repaired = []
+    for s in sgs:
+        subs = findAllSubstitutions(sn,s)
+        if subs is None:
+            repaired.append(s)
+        else:
+            new_s = s.applySubs(subs)
+            repaired.append(new_s)
+    return repaired

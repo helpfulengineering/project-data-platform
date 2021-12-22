@@ -87,47 +87,11 @@ xy = SupplyNetwork("XY",[X1,Y1])
 ab = SupplyNetwork("AB",[A1,B1])
 abc = SupplyNetwork("ABC",[A1,B1,C1])
 
-goodTypes(a)
-
-oneSupply("chair",a)
-
-# This is a somewhat effective paradigm for getting all supplies of a type
-next((x for i,x in enumerate(allSupplies("chair",a)) if i==0), None)
-next((x for i,x in enumerate(allSupplies("chair",a)) if i==1), None)
-
 # SupplyTree is consistent only if the Supplies in the inputDict match the type
 
 sx = SupplyTree(c1,{"leg": SupplyTree(l1,{}),
                     "seat": SupplyTree(s1,{}),
                     "back": SupplyTree(b1,{})})
-
-
-checkConsistency(sx)
-
-for st in list(SupplyProblem("chair",a)):
-    print(st)
-
-len(list(iter(SupplyProblem("chair",a))))
-
-for st in list(SupplyProblem("A",ab)):
-    print(st)
-
-abc_sp = iter(SupplyProblem("A",abc))
-for st in list(SupplyProblem("A",abc)):
-    print(st)
-
-for st in list(SupplyProblem("X",xy)):
-    print(st)
-for st in list(SupplyProblem("Y",xy)):
-    print(st)
-
-xyi = iter(SupplyProblem("X",xy))
-
-sp = SupplyProblem("chair",a)
-i = iter(sp)
-print(next((x for i,x in enumerate(SupplyProblem("chair",a)) if i==0), None))
-print(next((x for i,x in enumerate(SupplyProblem("chair",a)) if i==1), None))
-
 
 # Print only those SupplyTrees which are complete in the "chair" problem
 for st in list(SupplyProblem("chair",a).completeSupplyTrees()):
@@ -182,10 +146,56 @@ o1 = Order("chair",sx)
 
 import unittest
 import copy
-
+# our basic goal here is to create a bifurcated supply network:
+# C = A union B, where A intersect B = 0.
+# For every good, we want to show:
+# repair(scratch(A,CT(C)),A) = CT(C),
+# where CT(C) = the CompleteTrees of C.
+# WARNING: this assumes these symbols have been defined!
 # This code assumes the existence of our "standard" symbols from supply
 class TestStageGraph(unittest.TestCase):
+    def test_canScratchAWholeNetwork(self):
+        print("BBB")
+        # our basic goal here is to create a bifurcated supply network:
+        # C = A union B, where A intersect B = 0.
+        # For every good, we want to show:
+        # repair(scratch(A,CT(C)),A) = CT(C),
+        # where CT(C) = the CompleteTrees of C.
+        # WARNING: this assumes these symbols have been defined!
+        a = SupplyNetwork("A",[c1,l1,s1,b1,f1,p1,ss1])
+        b = SupplyNetwork("B",[c2,s2,s3,ss1])
+        c = unionSupplyNetworks(a,b)
+        gs = goodTypes(c)
+        for g in gs:
+            sp_c = SupplyProblem(g,c)
+            cts_c = sp_c.completeSupplyTrees()
+            sgs_c = list(map(lambda t: StageGraph(g,t),cts_c))
+            sgs_c = copy.deepcopy(sgs_c)
+            scratch(sgs_c,a)
+#            for s in sgs_c:
+#                print(s)
+            # I need to determine a good value to put in here
+    def test_bifurcatedSupplyNetworksAreFullyRepairable(self):
+        print("CCC")
+        a = SupplyNetwork("A",[c1,l1,s1,b1,f1,p1,ss1])
+        b = SupplyNetwork("B",[c2,s2,s3,ss1])
+        c = unionSupplyNetworks(a,b)
+        gs = goodTypes(c)
+        for g in gs:
+            ca = copy.deepcopy(a)
+            sp_c = SupplyProblem(g,c)
+            cts_c = sp_c.completeSupplyTrees()
+            sp_a = SupplyProblem(g,a)
+            cts_a = sp_a.completeSupplyTrees()
+            sgs_a = list(map(lambda t: StageGraph(g,t),cts_a))
+            sgs_c = list(map(lambda t: StageGraph(g,t),cts_c))
+            scratch(cts_a,a)
+            print("QQQ")
+            print(cts_a)
+            a_repaired_sgs = repair(cts_a,a)
+#            self.assertEqual(len(a_repaired_sgs),len(sgs_a))
     def test_canGetMultipleRepairableNodes_AndFindSubstituions(self):
+        print("AAAX")
         sx = SupplyTree(c1,{"leg": SupplyTree(l1,{}),
                             "seat": SupplyTree(s1,{}),
                             "back": SupplyTree(b1,{})})
@@ -194,20 +204,12 @@ class TestStageGraph(unittest.TestCase):
         sgc.scratch("seat_1")
         nms = sgc.namesOfAllSuppliesThatNeedRepair()
         self.assertEqual(len(nms),2)
-        # WARNING! The symbol "a" is global to this test!! We need more discipline.
-        # We need a way to filter out those substutions which are in fact
-        # scratched; that is the identity substitution, though valid at
-        # one level, is not what we want!
-        # The easiest way is to remove them from the supply network
         scratched = copy.deepcopy(a)
         scratched.scratch("leg_1")
         scratched.scratch("seat_1")
         subs = findAllSubstitutions(scratched,sgc)
-        # How do we know this? this is not a good test!
         self.assertEqual(len(subs),1)
         self.assertEqual(subs[0].a,"seat_1")
-        # What we really need to do is to perform each substitution and make
-        # sure each is somehow better.
 
 class TestOrder(unittest.TestCase):
     def test_canAdvanceOrderToCompletion(self):
@@ -226,4 +228,5 @@ scratched.scratch("leg_1")
 for s in scratched.supplies:
     print(s)
 
-unittest.main(exit=False)
+if __name__ == '__main__':
+    unittest.main(exit=False)
