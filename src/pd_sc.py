@@ -208,7 +208,6 @@ class TestStageGraph(unittest.TestCase):
         self.assertEqual(subs[0].a,"seat_1")
         # What we really need to do is to perform each substitution and make
         # sure each is somehow better.
-    def bifurcatedSupplyNetworksAreFullyRepairable():
 
 class TestOrder(unittest.TestCase):
     def test_canAdvanceOrderToCompletion(self):
