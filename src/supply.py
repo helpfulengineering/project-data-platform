@@ -19,6 +19,7 @@
 # Note an invariant (currently unchecked) is that the eqn should have the same number
 # of sybols as the inputs (or that + 1) and the names should match.
 # It would be better if we asserted that cleanly
+from functools import reduce
 from sympy import *
 
 class Supply:

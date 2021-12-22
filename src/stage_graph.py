@@ -109,11 +109,33 @@ class StageGraph:
             charlen = len(numerator)
             return numerator + '\n' + '=' * charlen + '\n'
 
-# Now I suppose we should write a function that tells of the order
+# Now I suppose we should write a function that tells if the order
 # is StageGraph is complete, and test by randomly completing orders
 # from the bottom up until it is true.
 
 class Order:
-    def __init__(self,supplyTree):
+    def __init__(self,good,supplyTree):
         self.supplyTree = supplyTree
-        self.stageGraph = StageGraph(self.supplyTree)
+        self.stageGraph = StageGraph(good,self.supplyTree)
+    def findOneOPEN(self,sg):
+        # Advance the first element that is not OPEN
+        # (assume none of the nodes are FAILED, i.e., it is repaird)
+        # If there is no such element, return null. This should be a
+        # DEEPEST such element
+        oneThatIsOpen = None
+        for key in sg.inputDict:
+            oneThatIsOpen = self.findOneOPEN(sg.inputDict[key])
+            if oneThatIsOpen is not None:
+                return oneThatIsOpen
+        if sg.currentStatus == StageStatus.OPEN:
+            return sg
+        else:
+            return None
+    def advanceOne(self):
+        # return a StageGraph if we succeed, None if we do not
+        sg = self.findOneOPEN(self.stageGraph)
+        if (sg is not None):
+            sg.currentStatus = StageStatus.SUCCEEDED
+            return sg
+        else:
+            return None

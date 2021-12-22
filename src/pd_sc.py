@@ -177,3 +177,21 @@ print(st_seat_2)
 sgc = StageGraph("chair",sx)
 sgc.repair("seat_1",st_seat_2)
 print(sgc)
+
+o1 = Order("chair",sx)
+
+import unittest
+
+# This code assumes the existence of our "standard" symbols from supply
+class TestOrder(unittest.TestCase):
+    def test_canAdvanceOrderToCompletion(self):
+        sx = SupplyTree(c1,{"leg": SupplyTree(l1,{}),
+                            "seat": SupplyTree(s1,{}),
+                            "back": SupplyTree(b1,{})})
+        o1 = Order("chair",sx)
+        sg = o1.advanceOne()
+        while(sg is not None):
+            sg = o1.advanceOne()
+        self.assertTrue(o1.stageGraph.isComplete())
+
+unittest.main(exit=False)
