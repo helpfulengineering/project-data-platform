@@ -232,6 +232,6 @@ def repair(sgs,sn):
         if subs is None:
             repaired.append(s)
         else:
-            new_s = s.applySubs(subs)
-            repaired.append(new_s)
+            s.applySubs(subs,sn)
+            repaired.append(s)
     return repaired

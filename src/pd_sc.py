@@ -162,19 +162,45 @@ class TestStageGraph(unittest.TestCase):
         # repair(scratch(A,CT(C)),A) = CT(C),
         # where CT(C) = the CompleteTrees of C.
         # WARNING: this assumes these symbols have been defined!
-        a = SupplyNetwork("A",[c1,l1,s1,b1,f1,p1,ss1])
-        b = SupplyNetwork("B",[c2,s2,s3,ss1])
+        a = SupplyNetwork("A",[c1,l1,s1,b1,f1])
+        b = SupplyNetwork("B",[c2,s2,s3,ss1,p1])
         c = unionSupplyNetworks(a,b)
         gs = goodTypes(c)
+        gsa = goodTypes(a)
+        gsb = goodTypes(b)
         for g in gs:
             sp_c = SupplyProblem(g,c)
             cts_c = sp_c.completeSupplyTrees()
             sgs_c = list(map(lambda t: StageGraph(g,t),cts_c))
             sgs_c = copy.deepcopy(sgs_c)
             scratch(sgs_c,a)
-#            for s in sgs_c:
-#                print(s)
-            # I need to determine a good value to put in here
+            cnt = 0;
+            for s in sgs_c:
+                needs = s.nameOfSupplyThatNeedsRepair()
+                if needs:
+                    cnt += 1
+            if g in gsb and g not in gsa:
+                # in this case we were NOT scratched,
+                # so there should be zero repairs
+                self.assertEqual(cnt,0)
+            else:
+                self.assertEqual(cnt,len(list(sp_c.completeSupplyTrees())))
+    def test_canGetMultipleRepairableNodes_AndFindSubstituions(self):
+        print("AAAX")
+        sx = SupplyTree(c1,{"leg": SupplyTree(l1,{}),
+                            "seat": SupplyTree(s1,{}),
+                            "back": SupplyTree(b1,{})})
+        sgc = StageGraph("chair",sx)
+        sgc.scratch("leg_1")
+        sgc.scratch("seat_1")
+        nms = sgc.namesOfAllSuppliesThatNeedRepair()
+        self.assertEqual(len(nms),2)
+        scratched = copy.deepcopy(a)
+        scratched.scratch("leg_1")
+        scratched.scratch("seat_1")
+        subs = findAllSubstitutions(scratched,sgc)
+        self.assertEqual(len(subs),1)
+        self.assertEqual(subs[0].a,"seat_1")
     def test_bifurcatedSupplyNetworksAreFullyRepairable(self):
         print("CCC")
         a = SupplyNetwork("A",[c1,l1,s1,b1,f1,p1,ss1])
@@ -192,24 +218,13 @@ class TestStageGraph(unittest.TestCase):
             scratch(cts_a,a)
             print("QQQ")
             print(cts_a)
-            a_repaired_sgs = repair(cts_a,a)
-#            self.assertEqual(len(a_repaired_sgs),len(sgs_a))
-    def test_canGetMultipleRepairableNodes_AndFindSubstituions(self):
-        print("AAAX")
-        sx = SupplyTree(c1,{"leg": SupplyTree(l1,{}),
-                            "seat": SupplyTree(s1,{}),
-                            "back": SupplyTree(b1,{})})
-        sgc = StageGraph("chair",sx)
-        sgc.scratch("leg_1")
-        sgc.scratch("seat_1")
-        nms = sgc.namesOfAllSuppliesThatNeedRepair()
-        self.assertEqual(len(nms),2)
-        scratched = copy.deepcopy(a)
-        scratched.scratch("leg_1")
-        scratched.scratch("seat_1")
-        subs = findAllSubstitutions(scratched,sgc)
-        self.assertEqual(len(subs),1)
-        self.assertEqual(subs[0].a,"seat_1")
+            # We reapair by the same thing we scratched by, to get
+            # a full repair!
+            a_repaired_sgs = repair(sgs_a,a)
+            print("spud")
+            print(a_repaired_sgs)
+            print(sgs_a)
+            self.assertEqual(len(a_repaired_sgs),len(sgs_a))
 
 class TestOrder(unittest.TestCase):
     def test_canAdvanceOrderToCompletion(self):
