@@ -237,6 +237,31 @@ class TestOrder(unittest.TestCase):
             sg = o1.advanceOne()
         self.assertTrue(o1.stageGraph.isComplete())
 
+
+class TestOKHSlurp(unittest.TestCase):
+    def test_canLoad(self):
+        okhAlphaDir = "../okf-library/alpha/okh/"
+        vm = slurpOKH(okhAlphaDir+"okh-ventmon-T0.4.yml");
+        print("ventMon T0.4 OKH")
+        print(vm);
+        self.assertTrue(vm)
+
+
+def getKnownOKHs(okhAlphaDir = "../okf-library/alpha/okh/"):
+    files = ["okh-Character-Generator.yml","okh-manifest-covisor.yml","okh-manifest-makermask-origami.yml","okh-manifest-surge-english.yml","okh-manifest-surge-spanish.yml","okh-orgami-face-shield.yml","okh-ventmon-T0.4.yml"]
+    okhs = []
+    for f in files:
+        okh = OKH();
+        okh.fromFile(okhAlphaDir + f)
+        print(okh.name)
+        print(okh.inputs)
+        print(okh.outputs)
+        print(okh.requiredTooling)
+        okhs.append(okh)
+    return okhs
+
+
+
 import copy
 scratched = copy.deepcopy(a)
 scratched.scratch("leg_1")

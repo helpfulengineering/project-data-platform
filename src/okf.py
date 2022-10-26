@@ -26,15 +26,31 @@
 # Supply objects to be added to some other SupplyNetwork.
 from supply import *
 
+import yamale
+
 class OKH:
     # At first this looks ridiculously like a supply, but
     # over time we will provide other methods
-    def __init__(self,name,outputs,inputs,requiredTooling,eqn):
+    def __init__(self,name = None,outputs = [],inputs = [],requiredTooling = [],eqn = "no eqn yet"):
         self.name = name
         self.outputs = frozenset(outputs)
         self.inputs = frozenset(inputs)
         self.requiredTooling = frozenset(requiredTooling)
         self.eqn = eqn
+    def fromFile(self,filename):
+        okh_yml = yamale.make_data(filename)
+        main = okh_yml[0][0]
+        self.name = main["title"]
+        if "bom" in main:
+            self.inputs = main["bom"].split(',')
+        else:
+            self.inputs = None
+        self.outputs = main["title"]
+        if "tool-list" in main:
+            self.requiredTooling = main["tool-list"].split(',')
+        else:
+            self.requiredTooling = None
+        return self
 
 class OKW:
     def __init__(self,name,toolingGoods):
@@ -68,3 +84,18 @@ class OKF:
                     name = w.name + "|" + h.name
                     ss.append(Supply(name,h.outputs,h.inputs,h.eqn))
         return ss
+
+
+# Here are a nubmer of .yml files.
+# We are now undertaking issue #4: https://github.com/helpfulengineering/project-data-platform/issues/4
+# And will attempt to read in files like this:
+# https://github.com/helpfulengineering/library/tree/main/alpha/okh
+# Useful files are:
+# okh-manifest-surge-english.yml
+
+
+import yamale
+def slurpOKH(filename):
+#    schema = yamale.make_schema('./schema.yaml')
+    okh = yamale.make_data(filename)
+    return okh
