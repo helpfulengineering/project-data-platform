@@ -17,4 +17,4 @@ Also, we use a submodule, you may have to execute:
 
 As part of our attempt to make a usable matching process, we plan to implement the following process:
 
-![Diagram of OKF Document Processing Workflow](https://user-images.githubusercontent.com/5296671/199362652-e490d2d4-d191-424e-859c-3a81fe94eca8.png)
+![Diagram of OKF Document Processing Workflow (3)](https://user-images.githubusercontent.com/5296671/202040410-0038e2bd-b62b-4fd4-ae92-d0ee6b58088c.png)
