@@ -1,13 +1,31 @@
 # project-data
 An experimental attempt to make a CLI for supply-chain modeling for Helpful Engineering's Project Data
 
-# Installation
+# Installation and running
 
-I'm not much of a pythonista. I've installed Anaconda to get the sympy package, and I assume any user of this will have to as well.
+Installation requires four parts:
 
-You also have to instal yamale:
+1. Installation of Python3.8 or greater, *(left as an exercise to reader.)*
+2. Installation of a Python package manager.
+  - We use and recommend [Poetry](https://python-poetry.org).
+  - Alternatively, `pip` or `conda` will suffice.
+3. Installation of the `okf-library` through `git submodule update`
 
-> pip install yamale
+## Installation and running with Poetry (recommended):
+
+This project uses `poetry`, an MIT licensed packaging-manager and dependency-manager. Poetry can be installed on **MacOS, Linux, or WSL** as follows:
+
+`curl -sSL https://install.python-poetry.org | python3 -`
+
+If you receive a `command not found: python3` error, you may need to replace `python3` with `py` or `python`.
+
+**Windows users** can install Poetry through Powershell as follows:
+
+`(Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py -`
+
+In the case of an error, replace `py` with `python3` or `python`.
+
+
 
 Also, we use a submodule, you may have to execute:
 
