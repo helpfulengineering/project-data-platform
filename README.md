@@ -54,20 +54,15 @@ Finally, run code as follows:
 
 `poetry run python src/helloworld.py`
 
-## Installing and running without Poetry. (
+## Installing and running without Poetry.
 
-Check `poetry.lock` for the version numbers of dependencies we use, `yamale` or `sympy`.
+Check `pyproject.toml` for the most up-to-date version numbers of dependencies we use, `yamale` or `sympy`.
 
-
-## Running with Poetry (recommended): (TODO)
-
+As of this README, that's Python 3.10, Yamale 4.0.4, and Sympy 1.11.1.
 
 
-
-# Process
+# Process description
 
 As part of our attempt to make a usable matching process, we plan to implement the following process:
 
 ![Diagram of OKF Document Processing Workflow](https://user-images.githubusercontent.com/5296671/199362652-e490d2d4-d191-424e-859c-3a81fe94eca8.png)
-
-(TODO from here down)
