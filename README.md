@@ -4,16 +4,22 @@ An experimental attempt to make a CLI for supply-chain modeling for Helpful Engi
 
 # Installation and running
 
-Installation requires four parts:
+First, clone the library and add the submodule:
 
-1. Clone this repository with `git@github.com:helpfulengineering/project-data-platform.git --recursive`
-  - If cloned without, 
-2. Installation of Python3.8 or greater, *(left as an exercise to reader.)*
-3. Installation of the Poetry Python package-manager and build-tool.
-  - We use and recommend [Poetry](https://python-poetry.org).
-  - Alternatively, `pip` or `conda` can be used.
-4. Installation of the `okf-library` through `git submodule update`
+```
+# Clone library
+git clone git@github.com:helpfulengineering/project-data-platform.git --recursive
+# Alternatively, uncomment to clone with HTTPS:
+# https://github.com/helpfulengineering/project-data-platform.git --recursive
 
+cd project-data-platform
+
+# If the submodule does not appear, explicitly add it:
+# git submodule add git@github.com:helpfulengineering/library.git ./okf-library
+
+# Install Python 3 -- left as an exercise to reader
+# Install Poetry and dependencies -- see below
+```
 
 ## Installation and running with Poetry (recommended):
 
@@ -28,7 +34,7 @@ Installation requires four parts:
 >
 > Poetry might look like overkill, but will be massively useful for saving time.
 
-This project uses `poetry`, an MIT licensed packaging-manager and dependency-manager.
+This project uses [`poetry`, an MIT licensed packaging-manager and dependency-manager.](https://python-poetry.org/
 
 **Users on MacOS, Linux, WSL, or Unix-likes**  can install Poetry as follows:
 
