@@ -71,7 +71,7 @@ As of this README, that's Python 3.10, Yamale 4.0.4, and Sympy 1.11.1.
 
 As part of our attempt to make a usable matching process, we plan to implement the following process:
 
-![Diagram of OKF Document Processing Workflow (3)](https://user-images.githubusercontent.com/5296671/202040410-0038e2bd-b62b-4fd4-ae92-d0ee6b58088c.png)
+![Diagram of OKF Document Processing Workflow (3)](docs/ProcessDescription.png)
 
 # Internal Workflow
 
