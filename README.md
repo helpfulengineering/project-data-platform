@@ -2,6 +2,8 @@
 
 An experimental attempt to make a CLI for supply-chain modeling for Helpful Engineering's Project Data
 
+Click here to view the [SCIS pilot project early code walk through video](https://youtu.be/IAYBdHfAjxg).
+
 # Installation and running
 
 First, clone the library and add the submodule:
