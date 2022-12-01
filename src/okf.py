@@ -24,8 +24,7 @@
 # will not attempt to represent perfectly at first.) A collection
 # of OKWs and OKHs then becomes a SupplyNetwork, or can produce
 # Supply objects to be added to some other SupplyNetwork.
-from supply import *
-
+from src.supply import *
 import yamale
 
 class OKH:
@@ -93,8 +92,6 @@ class OKF:
 # Useful files are:
 # okh-manifest-surge-english.yml
 
-
-import yamale
 def slurpOKH(filename):
 #    schema = yamale.make_schema('./schema.yaml')
     okh = yamale.make_data(filename)
