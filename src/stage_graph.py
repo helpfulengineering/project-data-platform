@@ -28,7 +28,7 @@
 # StageGraph
 # Order
 
-from supply import *
+from src.supply import *
 from enum import Enum
 class StageStatus(Enum):
     OPEN = 0
