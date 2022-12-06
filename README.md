@@ -4,6 +4,7 @@ An experimental attempt to make a CLI for supply-chain modeling for Helpful Engi
 
 Click here to view the [SCIS pilot project early code walk through video](https://youtu.be/IAYBdHfAjxg).
 
+
 # Installation and running
 
 First, clone the library and add the submodule:
@@ -67,6 +68,11 @@ Finally, run code as follows:
 Check `pyproject.toml` for the most up-to-date version numbers of dependencies we use, `yamale` or `sympy`.
 
 As of this README, that's Python 3.10, Yamale 4.0.4, and Sympy 1.11.1.
+
+
+# Using Jupyter notebooks
+
+The `notebooks` folder contains a code demo. These `.ipynb` are called "Jupyter Notebooks". [Install Jupyter Lab for your machine to work with notebooks](https://jupyter.org/install), or install a Jupyter Notebook  extension (such as [for VSCode](https://devblogs.microsoft.com/python/introducing-the-jupyter-extension-for-vs-code/), or [for emacs](https://github.com/nnicandro/emacs-jupyter), or try using [Jupyter running in your browser](https://jupyter.org/try-jupyter/lab/).
 
 
 # Process description
