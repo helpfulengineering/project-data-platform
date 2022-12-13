@@ -36,7 +36,7 @@ cd project-data-platform
 >
 > Poetry might look like overkill, but will be massively useful for saving time.
 
-This project uses [`poetry`, an MIT licensed packaging-manager and dependency-manager.](https://python-poetry.org/
+This project uses [`poetry`, an MIT licensed packaging-manager and dependency-manager.](https://python-poetry.org/)
 
 **Users on MacOS, Linux, WSL, or Unix-likes**  can install Poetry as follows:
 
