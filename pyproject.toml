@@ -10,6 +10,7 @@ packages = [{include = "project_data_platform"}]
 python = "^3.10"
 yamale = "^4.0.4"
 sympy = "^1.11.1"
+jupyter = "^1.0.0"
 
 
 [build-system]

@@ -28,7 +28,7 @@ cd project-data-platform
 
 > **tldr:**
 > 
-> ```
+> ```sh
 > curl -sSL https://install.python-poetry.org | python3 -
 > git submodule update
 > poetry install
@@ -70,10 +70,17 @@ Check `pyproject.toml` for the most up-to-date version numbers of dependencies w
 As of this README, that's Python 3.10, Yamale 4.0.4, and Sympy 1.11.1.
 
 
-# Using Jupyter notebooks
+# Using the Jupyter notebooks
 
 The `notebooks` folder contains a code demo. These `.ipynb` are called "Jupyter Notebooks". [Install Jupyter Lab for your machine to work with notebooks](https://jupyter.org/install), or install a Jupyter Notebook  extension (such as [for VSCode](https://devblogs.microsoft.com/python/introducing-the-jupyter-extension-for-vs-code/), or [for emacs](https://github.com/nnicandro/emacs-jupyter), or try using [Jupyter running in your browser](https://jupyter.org/try-jupyter/lab/).
 
+To start Jupyter lab, simply run the following command within the project root and open the `localhost` URL provided in terminal:
+
+```sh
+poetry run jupyter lab
+```
+
+To stop the server, use `CTRL+C` in the terminal as usual.
 
 # Process description
 
