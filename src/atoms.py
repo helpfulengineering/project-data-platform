@@ -1,16 +1,107 @@
 from functools import reduce
-from typing import Iterable, NamedTuple
+import itertools
+from typing import Generator, Iterable, NamedTuple, Protocol
+from collections.abc import Sized
 
-# Added SupplyAtom type. Defined as a NamedTuple
 class SupplyAtom(NamedTuple):
     identifier: str
     description: str
-    
+
     # only consider the identifier field when hashing or comparing
     def __hash__(self) -> int:
         return self.identifier.__hash__()
     def __eq__(self, __o: object) -> bool:
         return self.identifier == __o.identifier
+
+class Supplier(NamedTuple):
+    name: str
+    supplies: frozenset[SupplyAtom]
+    
+    @staticmethod
+    def create(name: str, supplies: Iterable[SupplyAtom]):
+        return Supplier(name, frozenset(supplies))
+
+
+class Maker(NamedTuple):
+    name: str
+    tools: frozenset[SupplyAtom]
+
+    @staticmethod
+    def create(name: str, tools: Iterable[SupplyAtom]):
+        return Maker(name, frozenset(tools))
+
+    def compatible(self, tools: Iterable[SupplyAtom]):
+        for tool in tools:
+            if tool not in self.tools:
+                return False
+        return True
+
+class ProductDesign(NamedTuple):
+    product: SupplyAtom
+    bom: frozenset[SupplyAtom]
+    tools: frozenset[SupplyAtom]
+    bomOutputs: frozenset[SupplyAtom]
+
+    @staticmethod
+    def create(product: SupplyAtom, bom: Iterable[SupplyAtom], tools: Iterable[SupplyAtom], bomOutput: Iterable[SupplyAtom]):
+        return ProductDesign(product, frozenset(bom), frozenset(tools), frozenset(bomOutput))
+
+class SupplyTree(Protocol):
+    def getProduct() -> SupplyAtom:
+        ...
+    def print(indent:int):
+        ...
+
+class SupplierSupplyTree(NamedTuple):
+    product: SupplyAtom
+    supplier: Supplier
+
+    def getProduct(self):
+        return self.product
+
+    def print(self, indent: int):
+        buffer = ' ' * indent
+        print(buffer + "Supplier: {}/{}".format(self.supplier.name, self.product.description))
+
+class MakerSupplyTree(NamedTuple):
+    product: SupplyAtom
+    design: ProductDesign
+    maker: Maker
+    supplies: frozenset[SupplyTree]
+
+    def getProduct(self):
+        return self.product
+
+    def print(self, indent: int):
+        buffer = ' ' * indent
+        print(buffer + "Maker: {}/{}".format(self.maker.name, self.design.product.description))
+        for s in self.supplies:
+            s.print(indent + 1)
+
+class SupplyProblemSpace(NamedTuple):
+    suppliers: frozenset[Supplier]
+    makers: frozenset[Maker]
+    designs: frozenset[ProductDesign]
+
+    @staticmethod
+    def create(suppliers: Iterable[Supplier], makers: Iterable[Maker], designs: Iterable[ProductDesign]):
+        return SupplyProblemSpace(frozenset(suppliers), frozenset(makers), frozenset(designs))
+
+    def query(self, product: SupplyAtom) -> Generator[SupplyTree, None, None]:
+        for supplier in self.suppliers:
+            for supply in supplier.supplies:
+                if supply == product:
+                    yield SupplierSupplyTree(product, supplier)
+        for design in self.designs:
+            if design.product == product:
+                foo = map(lambda b: self.query(b), design.bom)
+                inputs = frozenset(itertools.chain.from_iterable(foo))
+                for maker in self.makers:
+                    if maker.compatible(design.tools):
+                        yield MakerSupplyTree(product, design, maker, inputs)
+
+
+# Mask Sample
 
 # Product atoms
 fabricMask = SupplyAtom("QH00001", "Fabric Mask")
@@ -30,56 +121,14 @@ measuringTape = SupplyAtom("Q107196205", "Measuring Tape")
 # BOM Output Atoms
 scrapFabric = SupplyAtom("Q1378670", "Scrap Fabric")
 
-# SupplyDesign maps to the original Supply and OKH types
-# Note, this type currently it lacks the `eqn` field needed for cost calculation
-class SupplyDesign(NamedTuple):
-    product: SupplyAtom
-    bom: frozenset[SupplyAtom]
-    tools: frozenset[SupplyAtom]
-    bomOutputs: frozenset[SupplyAtom]
-
-    @property
-    def outputs(self):
-        return frozenset([self.product]).union(self.bomOutputs)
-
-    @staticmethod
-    def create(product: SupplyAtom, bom: Iterable[SupplyAtom], tools: Iterable[SupplyAtom], bomOutput: Iterable[SupplyAtom]):
-        return SupplyDesign(product, frozenset(bom), frozenset(tools), frozenset(bomOutput))
-
-maskDesign = SupplyDesign.create(
+supplierRaw = Supplier.create("raw supplies",  [nwpp, biasTape, tinTie, pipeCleaner])
+makerJames = Maker.create("James Maker Space", [sewingMachine, scissors, pins, measuringTape])
+designMask = ProductDesign.create(
     fabricMask, 
     [nwpp, biasTape, tinTie, pipeCleaner], 
     [sewingMachine, scissors, pins, scissors],
     [scrapFabric])
 
-# SupplyNetwork maps to the original SupplyNetwork type
-# it stores supplies in a set instead of a list since we aren't tracking ammounts yet
-# Also, it also stores a set of available tools as well as available supplies
-class SupplyNetwork:
-    def __init__(self, name: str, supplies: Iterable[SupplyAtom], tools: Iterable[SupplyAtom]) -> None:
-        self.name = name
-        self.supplies = set(supplies)
-        self.tools = set(tools)
-    def addSupply(self, item: SupplyAtom):
-        self.supplies.add(item)
-    def removeSupply(self, item: SupplyAtom):
-        self.supplies.remove(item)
-    def addTool(self, item: SupplyAtom):
-        self.tools.add(item)
-    def removeSupply(self, item: SupplyAtom):
-        self.tools.remove(item)
-
-    @staticmethod
-    def union(a: 'SupplyNetwork', b: 'SupplyNetwork'):
-        return SupplyNetwork(
-            a.name + "|" + b.name,
-            a.supplies.union(b.supplies),
-            a.tools.union(b.tools)) 
-    
-    # goodTypes - not sure what to do with this
-    # oneSUpply - doesn't appear to be used yet
-    # allSupplies - doesn't appear to be used yet
-
-jamesSpace = SupplyNetwork("James Maker Space", 
-    [nwpp, biasTape, tinTie, pipeCleaner], 
-    [sewingMachine, scissors, pins, measuringTape])
+problemSpace = SupplyProblemSpace.create([supplierRaw], [makerJames], [designMask])
+for t in problemSpace.query(fabricMask):
+    t.print(0)
