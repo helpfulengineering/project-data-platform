@@ -21,7 +21,6 @@ class Supplier(NamedTuple):
     def create(name: str, supplies: Iterable[SupplyAtom]):
         return Supplier(name, frozenset(supplies))
 
-
 class Maker(NamedTuple):
     name: str
     tools: frozenset[SupplyAtom]
@@ -94,11 +93,11 @@ class SupplyProblemSpace(NamedTuple):
                     yield SupplierSupplyTree(product, supplier)
         for design in self.designs:
             if design.product == product:
-                foo = map(lambda b: self.query(b), design.bom)
-                inputs = frozenset(itertools.chain.from_iterable(foo))
+                inputTrees = map(lambda b: self.query(b), design.bom)
+                inputTreeSet = frozenset(itertools.chain.from_iterable(inputTrees))
                 for maker in self.makers:
                     if maker.compatible(design.tools):
-                        yield MakerSupplyTree(product, design, maker, inputs)
+                        yield MakerSupplyTree(product, design, maker, inputTreeSet)
 
 
 # Mask Sample
