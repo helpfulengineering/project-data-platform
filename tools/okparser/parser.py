@@ -33,6 +33,7 @@ def get_wiki_data(items: list[str]) -> list[dict[str, str]]:
                         "//www.", "https://", response["search"][0]["url"]
                     )
                     break
+                utils.console.print(f"\t[red]couldn't find wikidata for {sub_item}")
             item_list.append(item_dict)
     return item_list
 
@@ -75,4 +76,6 @@ class Okh:
                 yaml.dump(
                     yaml_content, yaml_file, default_flow_style=False, sort_keys=False
                 )
-            utils.console.print(f"yml file generated at {self.path.parent}")
+            utils.console.print(
+                f"[green][bold]yaml file generated at {self.path.parent}"
+            )
