@@ -5,7 +5,7 @@ import requests
 import typer
 import yaml
 
-import utils
+from . import utils
 
 __REQUIRED_FIELDS__ = frozenset({"bom", "tool-list"})
 

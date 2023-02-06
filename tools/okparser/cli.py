@@ -1,9 +1,9 @@
-from parser import Okh
 from pathlib import Path
 
 import typer
 
-from utils import console
+from .parser import Okh
+from .utils import console
 
 # create the app
 cli = typer.Typer(pretty_exceptions_show_locals=False)
