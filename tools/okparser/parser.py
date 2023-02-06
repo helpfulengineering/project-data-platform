@@ -71,7 +71,7 @@ class Okh:
         )
         if yaml_content:
             with open(
-                self.path.parent / utils.generate_file_name(self.path.name), "w"
+                self.path.cwd() / utils.generate_file_name(self.path.name), "w"
             ) as yaml_file:
                 yaml.dump(
                     yaml_content, yaml_file, default_flow_style=False, sort_keys=False
