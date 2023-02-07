@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import yaml
 from rich.console import Console
 
@@ -33,7 +35,7 @@ def generate_file_name(file_name: str) -> str:
     return "okh_" + refined_file_name
 
 
-def read_yaml_file(path) -> dict:
+def read_yaml_file(path: Path) -> dict:
     """reads content in yaml file
 
     Args:

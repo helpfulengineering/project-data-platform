@@ -11,7 +11,7 @@ cli = typer.Typer(pretty_exceptions_show_locals=False)
 
 @cli.command()
 def version():
-    console.print("0.1.0")
+    console.print(version)
 
 
 @cli.command()
