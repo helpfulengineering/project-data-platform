@@ -51,3 +51,4 @@ jobs:
     - run: poetry run ruff check tools/okparser/ --format github
     - run: tools/okparser/src tools/okparser/tests -name "*.py" -not -path tools/okparser/src/cli.py | xargs poetry run darglint
     - run: poetry run black --check tools/okparser/src tools/okparser/tests
+    
