@@ -39,7 +39,7 @@ def read_yaml_file(path: Path) -> dict:
     """reads content in yaml file
 
     Args:
-        path: path to yaml file.
+        path: source_path to yaml file.
     Returns:
         file contents
     """
