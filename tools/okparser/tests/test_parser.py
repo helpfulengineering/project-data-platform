@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import patch
 
 from tools.okparser.src.parser import Okh
