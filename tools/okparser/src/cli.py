@@ -3,7 +3,7 @@ from pathlib import Path
 import typer
 
 from .parser import Okh
-from .utils import console
+from .utils import console, generate_file_name
 
 # create the app
 cli = typer.Typer(pretty_exceptions_show_locals=False)
@@ -15,7 +15,7 @@ def version():
 
 
 @cli.command()
-def parse(source: str, destination: str = None):
+def parse(source: str, destination: str = "."):
     """run the app in the current directory.
 
     Args:
@@ -26,9 +26,8 @@ def parse(source: str, destination: str = None):
         console.print("[red][bold] destination directory cannot be a file")
         typer.Exit()
 
-    okh_object = Okh(Path(source), Path(destination))
-    okh_object.parse_file()
-    okh_object.save()
+    okh_object = Okh.open(Path(source))
+    okh_object.save(Path(destination) / generate_file_name(Path(source).name))
 
 
 main = cli

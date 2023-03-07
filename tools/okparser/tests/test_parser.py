@@ -56,7 +56,7 @@ tool-list: Sewing machine, Scissors and pins
         """
     )
     okh = Okh(file, tmp_path)
-    okh.parse_file()
+    okh.generate_okh()
     okh.save()
 
     assert okh.bom_atoms == bom_atoms
