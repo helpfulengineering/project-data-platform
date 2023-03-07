@@ -93,8 +93,6 @@ class OKF:
 # Useful files are:
 # okh-manifest-surge-english.yml
 
-
-import yamale
 def slurpOKH(filename):
 #    schema = yamale.make_schema('./schema.yaml')
     okh = yamale.make_data(filename)

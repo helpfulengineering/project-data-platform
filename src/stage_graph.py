@@ -30,11 +30,11 @@
 
 from supply import *
 from enum import Enum
+
 class StageStatus(Enum):
     OPEN = 0
     SUCCEEDED  = 1
     FAILED = 2
-
 
 class StageGraph:
     def __init__(self,good,supplyTree):

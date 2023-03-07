@@ -25,6 +25,10 @@ from sympy import *
 
 import pprint
 from supply import *
+from okf import *
+from stage_graph import *
+import unittest
+import copy
 
 # A vary basic set of supplies...
 
@@ -102,7 +106,7 @@ for st in list(SupplyProblem("chair",a).completeSupplyTrees()):
 print(SupplyProblem("chair",a).optimalCompleteSupplyTreeByPrice(price_map)[0])
 
 
-from okf import *
+
 
 okh1 = OKH("SurgeMask",["mask"],["NWPP","coffee_tin_ties","fabric_ties"],["sewing_machine"],"no eqn yet")
 
@@ -119,7 +123,7 @@ combined = unionSupplyNetworks(a,okf_sn)
 for st in list(SupplyProblem("mask",okf_sn)):
     print(st)
 
-from stage_graph import *
+
 
 sgc = StageGraph("chair",sx)
 sgc.assertSupplyStatus("seat_1",StageStatus.FAILED)
@@ -144,8 +148,7 @@ print(sgc)
 
 o1 = Order("chair",sx)
 
-import unittest
-import copy
+
 # our basic goal here is to create a bifurcated supply network:
 # C = A union B, where A intersect B = 0.
 # For every good, we want to show:
@@ -262,7 +265,7 @@ def getKnownOKHs(okhAlphaDir = "../okf-library/alpha/okh/"):
 
 
 
-import copy
+
 scratched = copy.deepcopy(a)
 scratched.scratch("leg_1")
 for s in scratched.supplies:
