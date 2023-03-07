@@ -56,7 +56,7 @@ After installing Poetry, install the `okf-library` as follows:
 
 Then, the dependencies (described in `poetry.lock`) can be installed as follows:
 
-`poetry install`
+`poetry install --no-root`
 
 Finally, run code as follows:
 
