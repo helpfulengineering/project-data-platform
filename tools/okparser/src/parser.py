@@ -53,12 +53,11 @@ class Okh:
 
         if self.bom_atoms_exists() and self.tool_list_atoms_exist():
             typer.Exit()
-
         if not self.bom_atoms_exists():
             bom_items = self.yaml_content.get("bom", "").split(",")
             self.bom_atoms = utils.get_wiki_data(bom_items)
 
-        if self.tool_list_atoms_exist():
+        if not self.tool_list_atoms_exist():
             tool_list = self.yaml_content.get("tool-list", "").split(",")
             self.tool_list_atoms = utils.get_wiki_data(tool_list)
 

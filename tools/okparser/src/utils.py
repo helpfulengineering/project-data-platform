@@ -1,5 +1,8 @@
+import re
 from pathlib import Path
 
+import requests
+import typer
 import yaml
 from rich.console import Console
 
@@ -48,3 +51,31 @@ def read_yaml_file(path: Path) -> dict:
             return yaml.safe_load(file_stream)
         except yaml.YAMLError:
             console.print_exception()
+
+
+def get_wiki_data(items: list[str]) -> list[dict[str, str]]:
+    """search the wikidata api for items.
+
+    Args:
+        items: list of items(bom items, tools) to be searched.
+    Returns:
+        A list of search descriptions for each item.
+    """
+    item_list = []
+    with typer.progressbar(items, color=True) as progress:
+        for item in progress:
+            item_dict = {"identifier": "", "description": item.strip(), "link": ""}
+            # look for 'or' keyword in text and search each item
+            sub_items = item.split("or")
+            for sub_item in sub_items:
+                response = requests.get(get_url(sub_item)).json()
+                if response["search"]:
+                    # get the first result from the search results for now
+                    item_dict["identifier"] = response["search"][0]["id"]
+                    item_dict["link"] = re.sub(
+                        "//www.", "https://", response["search"][0]["url"]
+                    )
+                    break
+                console.print(f"\t[red]couldn't find wikidata for {sub_item}")
+            item_list.append(item_dict)
+    return item_list
