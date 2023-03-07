@@ -37,9 +37,12 @@ class Okh:
         return Okh(source_path)
 
     def bom_atoms_exists(self):
+        """check if bom atoms exists."""
+
         return self.yaml_content.get("bom-atoms") is not None
 
     def tool_list_atoms_exist(self):
+        """check if tool list atoms exists."""
         return self.yaml_content.get("tool-list-atoms") is not None
 
     def generate_okh(self, source_path) -> None:
