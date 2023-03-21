@@ -7,6 +7,7 @@ from collections.abc import Sized
 class SupplyAtom(NamedTuple):
     identifier: str
     description: str
+    # link: str
 
     # only consider the identifier field when hashing or comparing
     def __hash__(self) -> int:
@@ -17,14 +18,21 @@ class SupplyAtom(NamedTuple):
 
     @staticmethod
     def parse(yml):
+        identifier = yml.get("identifier")
+        if (identifier == None):
+            raise ValueError("missing SupplyAtom identifier")
+        description = yml.get("description")
+        # link = yml.get("link")
+        return SupplyAtom(identifier, description) #, link)
+
+    @staticmethod
+    def parseArray(yml):
         atoms = []
+        if (yml == None): return atoms
         for i in range(len(yml)):
-            identifier = yml[i].get("identifier")
-            description = yml[i].get("description")
-            atom = SupplyAtom(identifier, description)
+            atom = SupplyAtom.parse(yml[i])
             atoms.append(atom)
         return atoms
-
 
 class MakerSupplier(NamedTuple):
     name: str
@@ -34,15 +42,6 @@ class MakerSupplier(NamedTuple):
     @staticmethod
     def create(name: str, supplies: Iterable[SupplyAtom], tools: Iterable[SupplyAtom]):
         return MakerSupplier(name, frozenset(supplies), frozenset(tools))
-    
-    @staticmethod
-    def slurp(path: str):
-        with open(path, "rb") as file_stream:
-            yml = yaml.safe_load(file_stream)
-            name = yml.get("title")
-            supplies = SupplyAtom.parse(yml.get("supply-atoms"))
-            tools = SupplyAtom.parse(yml.get("tool-list-atoms"))
-            return MakerSupplier.create(name, supplies, tools)
 
 class Supplier(NamedTuple):
     name: str
@@ -68,6 +67,19 @@ class Maker(NamedTuple):
         return True
 
 
+def slurpOKW(path: str):
+    with open(path, "rb") as file_stream:
+        yml = yaml.safe_load(file_stream)
+        name = yml.get("title")
+        supplies = SupplyAtom.parseArray(yml.get("supply-atoms"))
+        tools = SupplyAtom.parseArray(yml.get("tool-list-atoms"))
+        toolCount = len(tools)
+        if (len(supplies) == 0):
+            if (toolCount == 0): raise ValueError("Invalid OKW")
+            return Maker.create(name, tools)
+        else:
+            return Supplier.create(name, supplies) if (toolCount == 0) else MakerSupplier.create(name, supplies, tools)
+
 class ProductDesign(NamedTuple):
     name: str
     product: SupplyAtom
@@ -85,12 +97,10 @@ class ProductDesign(NamedTuple):
             yml = yaml.safe_load(file_stream)
             name = yml.get("title")
             product = SupplyAtom.parse(yml.get("product-atom"))
-            if (len(product) != 1):
-                raise ValueError("Invalid product-atom")
-            bom = SupplyAtom.parse(yml.get("bom-atoms"))
-            tools = SupplyAtom.parse(yml.get("tool-list-atoms"))
-            bomOutput = SupplyAtom.parse(yml.get("bom-output-atoms"))
-            return ProductDesign(name, product[0], bom, tools, bomOutput)
+            bom = SupplyAtom.parseArray(yml.get("bom-atoms"))
+            tools = SupplyAtom.parseArray(yml.get("tool-list-atoms"))
+            bomOutput = SupplyAtom.parseArray(yml.get("bom-output-atoms"))
+            return ProductDesign(name, product, bom, tools, bomOutput)
 
 class SupplyTree(Protocol):
     def getProduct() -> SupplyAtom:
@@ -171,8 +181,8 @@ class SupplyProblemSpace(NamedTuple):
 
 #Slurp Sample
 helpfulChair = ProductDesign.slurp("C:/Users/harry/Source/helpful/library/alpha/okh/okh-chair-helpful.yml")
-devhawkMaker = MakerSupplier.slurp("C:/Users/harry/Source/helpful/library/alpha/okw/DevhawkEngineering.okw.yml")
-chairPartSupplier = MakerSupplier.slurp("C:/Users/harry/Source/helpful/library/alpha/okw/ChairParts.okw.yml")
+devhawkMaker = slurpOKW("C:/Users/harry/Source/helpful/library/alpha/okw/DevhawkEngineering.okw.yml")
+chairPartSupplier = slurpOKW("C:/Users/harry/Source/helpful/library/alpha/okw/ChairParts.okw.yml")
 
 # Mask Sample
 
