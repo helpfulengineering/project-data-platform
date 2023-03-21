@@ -1,5 +1,6 @@
 from functools import reduce
 import itertools
+import yaml
 from typing import Generator, Iterable, NamedTuple, Protocol
 from collections.abc import Sized
 
@@ -14,6 +15,34 @@ class SupplyAtom(NamedTuple):
     def __eq__(self, __o: object) -> bool:
         return self.identifier == __o.identifier
 
+    @staticmethod
+    def parse(yml):
+        atoms = []
+        for i in range(len(yml)):
+            identifier = yml[i].get("identifier")
+            description = yml[i].get("description")
+            atom = SupplyAtom(identifier, description)
+            atoms.append(atom)
+        return atoms
+
+
+class MakerSupplier(NamedTuple):
+    name: str
+    supplies: frozenset[SupplyAtom]
+    tools: frozenset[SupplyAtom]
+
+    @staticmethod
+    def create(name: str, supplies: Iterable[SupplyAtom], tools: Iterable[SupplyAtom]):
+        return MakerSupplier(name, frozenset(supplies), frozenset(tools))
+    
+    @staticmethod
+    def slurp(path: str):
+        with open(path, "rb") as file_stream:
+            yml = yaml.safe_load(file_stream)
+            name = yml.get("title")
+            supplies = SupplyAtom.parse(yml.get("supply-atoms"))
+            tools = SupplyAtom.parse(yml.get("tool-list-atoms"))
+            return MakerSupplier.create(name, supplies, tools)
 
 class Supplier(NamedTuple):
     name: str
@@ -50,6 +79,18 @@ class ProductDesign(NamedTuple):
     def create(name: str, product: SupplyAtom, bom: Iterable[SupplyAtom], tools: Iterable[SupplyAtom], bomOutput: Iterable[SupplyAtom]):
         return ProductDesign(name, product, frozenset(bom), frozenset(tools), frozenset(bomOutput))
 
+    @staticmethod
+    def slurp(path: str):
+        with open(path, "rb") as file_stream:
+            yml = yaml.safe_load(file_stream)
+            name = yml.get("title")
+            product = SupplyAtom.parse(yml.get("product-atom"))
+            if (len(product) != 1):
+                raise ValueError("Invalid product-atom")
+            bom = SupplyAtom.parse(yml.get("bom-atoms"))
+            tools = SupplyAtom.parse(yml.get("tool-list-atoms"))
+            bomOutput = SupplyAtom.parse(yml.get("bom-output-atoms"))
+            return ProductDesign(name, product[0], bom, tools, bomOutput)
 
 class SupplyTree(Protocol):
     def getProduct() -> SupplyAtom:
@@ -128,8 +169,12 @@ class SupplyProblemSpace(NamedTuple):
         if found == False:
             yield MissingSupplyTree(product)
 
-# Mask Sample
+#Slurp Sample
+helpfulChair = ProductDesign.slurp("C:/Users/harry/Source/helpful/library/alpha/okh/okh-chair-helpful.yml")
+devhawkMaker = MakerSupplier.slurp("C:/Users/harry/Source/helpful/library/alpha/okw/DevhawkEngineering.okw.yml")
+chairPartSupplier = MakerSupplier.slurp("C:/Users/harry/Source/helpful/library/alpha/okw/ChairParts.okw.yml")
 
+# Mask Sample
 
 # Product atoms
 fabricMask = SupplyAtom("QH00001", "Fabric Mask")
@@ -222,3 +267,6 @@ problemSpace = SupplyProblemSpace.create(
 
 for t in problemSpace.query(chair):
     t.print(0)
+
+
+
