@@ -99,7 +99,7 @@ class ProductDesign(NamedTuple):
             product = SupplyAtom.parse(yml.get("product-atom"))
             bom = SupplyAtom.parseArray(yml.get("bom-atoms"))
             tools = SupplyAtom.parseArray(yml.get("tool-list-atoms"))
-            bomOutput = SupplyAtom.parseArray(yml.get("bom-output-atoms"))
+            bomOutput = [] #SupplyAtom.parseArray(yml.get("bom-output-atoms"))
             return ProductDesign(name, product, bom, tools, bomOutput)
 
 class SupplyTree(Protocol):
