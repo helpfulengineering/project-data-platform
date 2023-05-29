@@ -1,6 +1,8 @@
 import yaml
 from typing import Generator, Iterable, NamedTuple, Protocol
 import urllib.request
+from ghapi.all import GhApi
+import base64
 
 def openFileOrUrl(path: str):
     if (path.startswith('http')):
@@ -38,6 +40,7 @@ class SupplyAtom(NamedTuple):
             atoms.append(atom)
         return atoms
 
+# rename to OkwParty and fold supplier/maker/makerSupplier into a single type
 class MakerSupplier(NamedTuple):
     name: str
     supplies: frozenset[SupplyAtom]
@@ -183,6 +186,24 @@ class SupplyProblemSpace(NamedTuple):
                         yield MakerSupplyTree(product, design, maker, frozenset(trees))
         if found == False:
             yield MissingSupplyTree(product)
+
+
+# Sample code that demonstrates how to use the GhApi library to read files from GitHub
+
+# create a ghapi client for the helpfulengineering/library repo
+api = GhApi(owner='helpfulengineering', repo='library')
+# get the main branch
+ref = api.git.get_ref('heads/main')
+# get the commit for the main branch
+commit = api.git.get_commit(ref.object.sha)
+# get the tree for the commit
+tree = api.git.get_tree(commit.tree.sha)
+# find the root README.md blob ref
+readmeItem = next(filter(lambda x: x.path == "README.md", tree.tree.items))
+# get the blob for the README.md
+readmeBlob = api.git.get_blob(readmeItem.sha)
+# decode the blob's base64 encoded content
+readmeContent = base64.b64decode(readmeBlob.content)
 
 
 #Slurp Sample
