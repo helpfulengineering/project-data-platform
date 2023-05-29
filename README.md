@@ -6,68 +6,58 @@ Click here to view the [SCIS pilot project early code walk through video](https:
 
 # Installation and running
 
-First, clone the library and add the submodule:
+Note, `project-data` requires Python 3.10 or higher.
+
+After cloning the library, you can install the dependencies in your global Python environment, or in a
+[virtual environment](https://docs.python.org/3/library/venv.html).
+It is highly recommended to use a virtual environment, as it will prevent dependency conflicts with other projects.
+For more information on Python virtual environments, see the [official Python documentation](https://docs.python.org/3/library/venv.html).
+
+## Creating a Virtual Environment with VSCode
+
+If you are using VSCode, the [Microsoft Python extension](https://marketplace.visualstudio.com/items?itemName=ms-python.python)
+can automatically configure a Python virtual environment for you. To do this, open the command palette (`Ctrl+Shift+P` or `Cmd+Shift+P`)
+and search for "Python: Create Environment". Select the `Venv` option and then select the Python interpreter you want to use.
+(Python 3.10 or later). This will create a virtual environment in the `.venv` folder in the root of your project. Additionally, 
+if you open a VSCode terminal window, it will automatically activate the virtual environment for you.
+
+## Creating a Virtual Environment manually
+
+To manually create a virual environment for this project, first you need to run the `venv` module from the Python standard library.
+Like virtual environments created by the VSCode extension, any VSCode terminal window you open will be automatically activated
+in the virtual environment.
+
+Execute this command from the root of your cloned project:
 
 ```
-# Clone library
-git clone git@github.com:helpfulengineering/project-data-platform.git --recursive
-# Alternatively, uncomment to clone with HTTPS:
-# https://github.com/helpfulengineering/project-data-platform.git --recursive
-
-cd project-data-platform
-
-# If the submodule does not appear, explicitly add it:
-# git submodule add git@github.com:helpfulengineering/library.git ./okf-library
-
-# Install Python 3 -- left as an exercise to reader
-# Install Poetry and dependencies -- see below
+python3 -m venv .venv
 ```
 
-## Installation and running with Poetry (recommended):
+> Note, you can create the virtual environment in whatever folder you please that doesn't conflict with a current 
+> project folder. The `.venv` folder is a common convention for Python projects. The rest of this guide assumes you
+> have created the virtual environment in the `.venv` folder in the root of your cloned project.
 
-> **tldr:**
-> 
-> ```
-> curl -sSL https://install.python-poetry.org | python3 -
-> git submodule update
-> poetry install
-> poetry run python src/helloworld.py
-> ```
->
-> Poetry might look like overkill, but will be massively useful for saving time.
+Next, you need to activate the virtual environment. The virtual environment's script directory contains a series of 
+`activate` scripts for different shells. You can activate the virtual environment by running the appropriate script
+for the shell you are using.
 
-This project uses [`poetry`, an MIT licensed packaging-manager and dependency-manager.](https://python-poetry.org/)
+For example, if you are using Bash, you can activate the virtual environment by running:
 
-**Users on MacOS, Linux, WSL, or Unix-likes**  can install Poetry as follows:
+```
+.venv/Scripts/activate
+```
 
-`curl -sSL https://install.python-poetry.org | python3 -`
+`Activate.ps1` and `activate.bat` are also available for Powershell and Windows Command Prompt, respectively.
 
-**Users on Windows** can install Poetry through Powershell as follows:
+Finally, install the dependencies in the virtual environment by running the following command from the root of your
+cloned project:
 
-`(Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py -`
+```
+python3 -m pip install --editable .
+```
 
-**In the case of an error**, your Python installation might point to `python3`, `py`, or `python`.
-
-You can check Poetry is installed with the command `poetry -h`. Poetry has [basic usage documentation](https://python-poetry.org/docs/basic-usage/) and is recommended reading.
-
-After installing Poetry, install the `okf-library` as follows:
-
-`git submodule update`
-
-Then, the dependencies (described in `poetry.lock`) can be installed as follows:
-
-`poetry install`
-
-Finally, run code as follows:
-
-`poetry run python src/helloworld.py`
-
-## Installing and running without Poetry.
-
-Check `pyproject.toml` for the most up-to-date version numbers of dependencies we use, `yamale` or `sympy`.
-
-As of this README, that's Python 3.10, Yamale 4.0.4, and Sympy 1.11.1.
-
+The `--editable .` option causes `pip` to retrieve the list of dependencies from the `pyproject.toml` file and install
+them in the virtual environment.
 
 # Process description
 
