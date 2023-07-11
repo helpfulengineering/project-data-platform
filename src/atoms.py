@@ -40,54 +40,34 @@ class SupplyAtom(NamedTuple):
             atoms.append(atom)
         return atoms
 
-# rename to OkwParty and fold supplier/maker/makerSupplier into a single type
-class MakerSupplier(NamedTuple):
+class OkwParty(NamedTuple):
     name: str
     supplies: frozenset[SupplyAtom]
     tools: frozenset[SupplyAtom]
 
     @staticmethod
     def create(name: str, supplies: Iterable[SupplyAtom], tools: Iterable[SupplyAtom]):
-        return MakerSupplier(name, frozenset(supplies), frozenset(tools))
-
-class Supplier(NamedTuple):
-    name: str
-    supplies: frozenset[SupplyAtom]
+        return OkwParty(name, frozenset(supplies), frozenset(tools))
 
     @staticmethod
-    def create(name: str, supplies: Iterable[SupplyAtom]):
-        return Supplier(name, frozenset(supplies))
-
-
-class Maker(NamedTuple):
-    name: str
-    tools: frozenset[SupplyAtom]
-
-    @staticmethod
-    def create(name: str, tools: Iterable[SupplyAtom]):
-        return Maker(name, frozenset(tools))
+    def parse(path: str):
+        with openFileOrUrl(path) as file_stream:
+            yml = yaml.safe_load(file_stream)
+            name = yml.get("title")
+            supplies = SupplyAtom.parseArray(yml.get("supply-atoms"))
+            tools = SupplyAtom.parseArray(yml.get("tool-list-atoms"))
+            return OkwParty.create(name, supplies, tools)
 
     def compatible(self, tools: Iterable[SupplyAtom]):
+        # assume that a party w/o tools is not a maker and therefore not compatible with any design
+        if len(tools) == 0: 
+            return False
         for tool in tools:
             if tool not in self.tools:
                 return False
         return True
 
-
-def slurpOKW(path: str):
-    with openFileOrUrl(path) as file_stream:
-        yml = yaml.safe_load(file_stream)
-        name = yml.get("title")
-        supplies = SupplyAtom.parseArray(yml.get("supply-atoms"))
-        tools = SupplyAtom.parseArray(yml.get("tool-list-atoms"))
-        toolCount = len(tools)
-        if (len(supplies) == 0):
-            if (toolCount == 0): raise ValueError("Invalid OKW")
-            return Maker.create(name, tools)
-        else:
-            return Supplier.create(name, supplies) if (toolCount == 0) else MakerSupplier.create(name, supplies, tools)
-
-class ProductDesign(NamedTuple):
+class OkhDesign(NamedTuple):
     name: str
     product: SupplyAtom
     bom: frozenset[SupplyAtom]
@@ -96,7 +76,7 @@ class ProductDesign(NamedTuple):
 
     @staticmethod
     def create(name: str, product: SupplyAtom, bom: Iterable[SupplyAtom], tools: Iterable[SupplyAtom], bomOutput: Iterable[SupplyAtom]):
-        return ProductDesign(name, product, frozenset(bom), frozenset(tools), frozenset(bomOutput))
+        return OkhDesign(name, product, frozenset(bom), frozenset(tools), frozenset(bomOutput))
         
 
     @staticmethod
@@ -108,7 +88,7 @@ class ProductDesign(NamedTuple):
             bom = SupplyAtom.parseArray(yml.get("bom-atoms"))
             tools = SupplyAtom.parseArray(yml.get("tool-list-atoms"))
             bomOutput = [] #SupplyAtom.parseArray(yml.get("bom-output-atoms"))
-            return ProductDesign(name, product, bom, tools, bomOutput)
+            return OkhDesign(name, product, bom, tools, bomOutput)
 
 class SupplyTree(Protocol):
     def getProduct() -> SupplyAtom:
@@ -120,7 +100,7 @@ class SupplyTree(Protocol):
 
 class SupplierSupplyTree(NamedTuple):
     product: SupplyAtom
-    supplier: Supplier
+    supplier: OkwParty
 
     def getProduct(self):
         return self.product
@@ -133,8 +113,8 @@ class SupplierSupplyTree(NamedTuple):
 
 class MakerSupplyTree(NamedTuple):
     product: SupplyAtom
-    design: ProductDesign
-    maker: Maker
+    design: OkhDesign
+    maker: OkwParty
     supplies: frozenset[SupplyTree]
 
     def getProduct(self):
@@ -159,17 +139,16 @@ class MissingSupplyTree(NamedTuple):
 
 
 class SupplyProblemSpace(NamedTuple):
-    suppliers: frozenset[Supplier]
-    makers: frozenset[Maker]
-    designs: frozenset[ProductDesign]
+    parties: frozenset[OkwParty]
+    designs: frozenset[OkhDesign]
 
     @staticmethod
-    def create(suppliers: Iterable[Supplier], makers: Iterable[Maker], designs: Iterable[ProductDesign]):
-        return SupplyProblemSpace(frozenset(suppliers), frozenset(makers), frozenset(designs))
+    def create(parties: Iterable[OkwParty], designs: Iterable[OkhDesign]):
+        return SupplyProblemSpace(frozenset(parties), frozenset(designs))
 
     def query(self, product: SupplyAtom) -> Generator[SupplyTree, None, None]:
         found = False
-        for supplier in self.suppliers:
+        for supplier in self.parties:
             for supply in supplier.supplies:
                 if supply == product:
                     found = True
@@ -180,7 +159,7 @@ class SupplyProblemSpace(NamedTuple):
                 for bom in design.bom:
                     for tree in self.query(bom):
                         trees.append(tree)
-                for maker in self.makers:
+                for maker in self.parties:
                     if maker.compatible(design.tools):
                         found = True
                         yield MakerSupplyTree(product, design, maker, frozenset(trees))
@@ -188,28 +167,33 @@ class SupplyProblemSpace(NamedTuple):
             yield MissingSupplyTree(product)
 
 
-# Sample code that demonstrates how to use the GhApi library to read files from GitHub
+# # Sample code that demonstrates how to use the GhApi library to read files from GitHub
 
-# create a ghapi client for the helpfulengineering/library repo
-api = GhApi(owner='helpfulengineering', repo='library')
-# get the main branch
-ref = api.git.get_ref('heads/main')
-# get the commit for the main branch
-commit = api.git.get_commit(ref.object.sha)
-# get the tree for the commit
-tree = api.git.get_tree(commit.tree.sha)
-# find the root README.md blob ref
-readmeItem = next(filter(lambda x: x.path == "README.md", tree.tree.items))
-# get the blob for the README.md
-readmeBlob = api.git.get_blob(readmeItem.sha)
-# decode the blob's base64 encoded content
-readmeContent = base64.b64decode(readmeBlob.content)
+# # create a ghapi client for the helpfulengineering/library repo
+# api = GhApi(owner='helpfulengineering', repo='library')
+# # get the main branch
+# ref = api.git.get_ref('heads/main')
+# # get the commit for the main branch
+# commit = api.git.get_commit(ref.object.sha)
+# # get the tree for the commit
+# tree = api.git.get_tree(commit.tree.sha)
+# # find the root README.md blob ref
+# readmeItem = next(filter(lambda x: x.path == "README.md", tree.tree.items))
+# # get the blob for the README.md
+# readmeBlob = api.git.get_blob(readmeItem.sha)
+# # decode the blob's base64 encoded content
+# readmeContent = base64.b64decode(readmeBlob.content)
+
+# # todo:
+# #  get a list of all the .yaml files in the beta/okw and beta/okh folders
+# #  and slurp each of them a the appropriate type
 
 
-#Slurp Sample
-helpfulChair = ProductDesign.slurp("https://raw.githubusercontent.com/helpfulengineering/library/main/alpha/okh/okh-chair-helpful.yml")
-devhawkMaker = slurpOKW("https://raw.githubusercontent.com/helpfulengineering/library/main/alpha/okw/DevhawkEngineering.okw.yml")
-chairPartSupplier = slurpOKW("https://raw.githubusercontent.com/helpfulengineering/library/main/alpha/okw/ChairParts.okw.yml")
+
+# #Slurp Sample
+# helpfulChair = OkhDesign.slurp("https://raw.githubusercontent.com/helpfulengineering/library/main/alpha/okh/okh-chair-helpful.yml")
+# devhawkMaker = slurpOKW("https://raw.githubusercontent.com/helpfulengineering/library/main/alpha/okw/DevhawkEngineering.okw.yml")
+# chairPartSupplier = slurpOKW("https://raw.githubusercontent.com/helpfulengineering/library/main/alpha/okw/ChairParts.okw.yml")
 
 # Mask Sample
 
@@ -255,44 +239,40 @@ saw = SupplyAtom("Q125356", "saw")
 
 # designs
 
-chairDesign = ProductDesign.create(
+chairDesign = OkhDesign.create(
     "Funky Chair Design",
     chair,
     [chairLeg, chairSeat, chairBack, nails],
     [hammer],
     [])
 
-legDesign = ProductDesign.create(
+legDesign = OkhDesign.create(
     "Leg Design",
     chairLeg,
     [wood],
     [lathe],
     [])
 
-seatDesign1 = ProductDesign.create(
+seatDesign1 = OkhDesign.create(
     "Seat Design 1",
     chairSeat,
     [fabric],
     [plane],
     [])
 
-seatDesign2 = ProductDesign.create(
+seatDesign2 = OkhDesign.create(
     "Seat Design 2",
     chairSeat,
     [frame, stuffing, upholstery],
     [sewingMachine],
     [])
 
-supplierRaw = Supplier.create("raw supplies",
-                              [nwpp, biasTape, tinTie, pipeCleaner, fabric, wood, upholstery, frame, nails])
+supplierRaw = OkwParty.create("raw supplies", [nwpp, biasTape, tinTie, pipeCleaner, fabric, wood, upholstery, frame, nails], [])
+supplierRobert = OkwParty.create("Robert's Chair Parts", [chairBack, chairLeg], [])
+makerJames = OkwParty.create("James Maker Space", [], [sewingMachine, scissors, pins, measuringTape])
+makerHarry = OkwParty.create("Devhawk Engineering", [], [hammer, lathe, plane])
 
-supplierRobert = Supplier.create("Robert's Chair Parts", [chairBack, chairLeg])
-
-makerJames = Maker.create("James Maker Space", [
-                          sewingMachine, scissors, pins, measuringTape])
-makerHarry = Maker.create("Devhawk Engineering", [hammer, lathe, plane])
-
-maskDesign = ProductDesign.create(
+maskDesign = OkhDesign.create(
     "Surge Mask",
     fabricMask,
     [nwpp, biasTape, tinTie, pipeCleaner],
@@ -300,7 +280,8 @@ maskDesign = ProductDesign.create(
     [scrapFabric])
 
 problemSpace = SupplyProblemSpace.create(
-    [supplierRaw, supplierRobert], [makerJames, makerHarry], [maskDesign, chairDesign, seatDesign1, seatDesign2, legDesign])
+    [supplierRaw, supplierRobert, makerJames, makerHarry], 
+    [maskDesign, chairDesign, seatDesign1, seatDesign2, legDesign])
 
 for t in problemSpace.query(chair):
     t.print(0)
