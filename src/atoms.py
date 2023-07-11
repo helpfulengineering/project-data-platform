@@ -98,7 +98,7 @@ class SupplyTree(Protocol):
         ...
 
 
-class SupplierSupplyTree(NamedTuple):
+class SuppliedSupplyTree(NamedTuple):
     product: SupplyAtom
     supplier: OkwParty
 
@@ -111,7 +111,7 @@ class SupplierSupplyTree(NamedTuple):
               self.product.description))
 
 
-class MakerSupplyTree(NamedTuple):
+class MadeSupplyTree(NamedTuple):
     product: SupplyAtom
     design: OkhDesign
     maker: OkwParty
@@ -152,7 +152,7 @@ class SupplyProblemSpace(NamedTuple):
             for supply in supplier.supplies:
                 if supply == product:
                     found = True
-                    yield SupplierSupplyTree(product, supplier)
+                    yield SuppliedSupplyTree(product, supplier)
         for design in self.designs:
             if design.product == product:
                 trees = []
@@ -162,7 +162,7 @@ class SupplyProblemSpace(NamedTuple):
                 for maker in self.parties:
                     if maker.compatible(design.tools):
                         found = True
-                        yield MakerSupplyTree(product, design, maker, frozenset(trees))
+                        yield MadeSupplyTree(product, design, maker, frozenset(trees))
         if found == False:
             yield MissingSupplyTree(product)
 
