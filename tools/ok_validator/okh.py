@@ -12,4 +12,4 @@ __REQUIRED_FIELDS__ = [
 class OKHValidator(OKValidator):
 
     def __int__(self):
-        super().__int__(__REQUIRED_FIELDS__)
+        super().__init__(__REQUIRED_FIELDS__)
