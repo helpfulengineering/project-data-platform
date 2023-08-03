@@ -2,6 +2,9 @@
 import yaml
 from pathlib import Path
 from typing import List, Union
+from collections import namedtuple
+
+Error = namedtuple("Error", ["type", "msg"])
 
 
 class OKValidator:
@@ -17,13 +20,21 @@ class OKValidator:
                 return False
         return True
 
-    def validate(self, src: Union[str, Path, dict]) -> bool:
+    def validate(self, src: Union[str, Path, dict], raise_exception=False) -> bool:
         """
-        Validate the YAML source, which can be a file path, YAML content string, Path object, or YAML dictionary.
+        Validate the YAML source, which can be a file path, YAML content string,
+        Path object, or YAML dictionary.
         """
         if not isinstance(src, Union[str, dict]):
-            raise TypeError("src should be one of the following: a string path, a yaml string content,  "
-                            "a Path object, or Yaml dict")
+            return self.return_value_or_error(
+                Error(
+                    ValueError,
+                    "src should be one of the following: a string path, "
+                    "a yaml string content,"
+                    "a Path object, or Yaml dict",
+                ),
+                raise_exception,
+            )
 
         if isinstance(src, dict):
             return self._validate_yaml(src)
@@ -32,16 +43,46 @@ class OKValidator:
             src = str(src)
 
         try:
-            with open(src, 'r') as yaml_file:
+            with open(src, "r") as yaml_file:
                 yaml_content = yaml.safe_load(yaml_file)
                 if yaml_content is None:
-                    print("Error: The YAML file is empty or contains invalid syntax.")
-                    return False
+                    return self.return_value_or_error(
+                        Error(
+                            ValueError,
+                            "The YAML file is empty or contains invalid " "syntax.",
+                        ),
+                        raise_exception,
+                    )
                 else:
                     return self._validate_yaml(yaml_content)
         except FileNotFoundError:
-            print("Error: File not found. Please provide a valid YAML file path.")
+            return self.return_value_or_error(
+                Error(
+                    FileNotFoundError,
+                    "File not found. Please provide a valid YAML " "file path.",
+                ),
+                raise_exception,
+            )
+        except yaml.YAMLError:
+            return self.return_value_or_error(
+                Error(yaml.YAMLError, ""), raise_exception
+            )
+
+    @staticmethod
+    def return_value_or_error(result: Error, raise_exception: bool = False):
+        """Return a bool or raise an exception.
+
+        Args:
+            result: exception to raise.
+            raise_exception: If set to true, the provided exception will be raised.
+        """
+        if not raise_exception:
             return False
-        except yaml.YAMLError as e:
-            print(f"Error: Invalid YAML syntax. {e}")
-            return False
+
+        if not isinstance(result, Error):
+            raise TypeError(
+                f"result arg needs to be of type,{type(Error)}. "
+                f"Got {type(result)} instead."
+            )
+
+        raise result.type(result.msg)
