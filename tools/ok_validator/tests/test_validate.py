@@ -15,7 +15,8 @@ bom: mock bom field.
 
 @pytest.fixture
 def okh_yaml_file(tmp_path, okh_string):
-    (okh_file := tmp_path / "okh.yaml").touch()
+    okh_file = tmp_path / "okh.yaml"
+    okh_file.touch()
     okh_file.write_text(okh_string)
 
     return okh_file
@@ -66,7 +67,8 @@ def test_validate_with_invalid_file(tmp_path, ok_validator):
             tmp_path: Test location.
             ok_validator: Validator Instance.
     """
-    (file := tmp_path / "okh.yaml").touch()
+    file = tmp_path / "okh.yaml"
+    file.touch()
     assert not ok_validator.validate(file)
 
     file.write_text("""title: invalid_field: mock title
