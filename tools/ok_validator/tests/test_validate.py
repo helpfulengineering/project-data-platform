@@ -4,9 +4,7 @@ import pytest
 from tools.ok_validator.src.validate import OKValidator, Error
 
 
-@pytest.mark.parametrize(
-    "fixture", ["okh_yaml_file", "okh_dict"]
-)
+@pytest.mark.parametrize("fixture", ["okh_yaml_file", "okh_dict"])
 def test_validate_yaml_file(fixture, request, ok_validator):
     """Test that the validate method returns the correct boolean.
 
@@ -21,11 +19,11 @@ def test_validate_yaml_file(fixture, request, ok_validator):
 
 def test_validate_with_non_existent_file(tmp_path, ok_validator):
     """Test that the validate method returns False when file does not
-        exist.
+    exist.
 
-        Args:
-            tmp_path: Test location.
-            ok_validator: Validator instance.
+    Args:
+        tmp_path: Test location.
+        ok_validator: Validator instance.
     """
     file = tmp_path / "okh.yaml"
     assert not ok_validator.validate(file)
@@ -33,30 +31,32 @@ def test_validate_with_non_existent_file(tmp_path, ok_validator):
 
 def test_validate_with_invalid_file(tmp_path, ok_validator):
     """Test that the validate method returns False when an invalid Yaml file
-        is passed.
+    is passed.
 
-        Args:
-            tmp_path: Test location.
-            ok_validator: Validator Instance.
+    Args:
+        tmp_path: Test location.
+        ok_validator: Validator Instance.
     """
     file = tmp_path / "okh.yaml"
     file.touch()
     assert not ok_validator.validate(file)
 
-    file.write_text("""title: invalid_field: mock title
+    file.write_text(
+        """title: invalid_field: mock title
 description: mock description.
-    """)
+    """
+    )
 
     assert not ok_validator.validate(file)
 
 
 def test_validate_raise_exception(tmp_path, ok_validator):
     """Test that an exception is raised when the raise_exception parameter
-        is set to True on the validator method.
+    is set to True on the validator method.
 
-        Args:
-            tmp_path: The test location.
-            ok_validator: Validator instance.
+    Args:
+        tmp_path: The test location.
+        ok_validator: Validator instance.
     """
     file = tmp_path / "okh.yaml"
 
@@ -75,7 +75,7 @@ def test_return_value_or_error():
 
 def test_return_value_or_error_with_wrong_error_type():
     """Test that an exception is raised when the wrong type is provided
-        with the `raise_exception` flag set to True.
+    with the `raise_exception` flag set to True.
     """
     with pytest.raises(TypeError):
         OKValidator.return_value_or_error(str, raise_exception=True)
