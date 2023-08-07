@@ -25,12 +25,12 @@ class OKValidator:
         Validate the YAML source, which can be a file path, YAML content string,
         Path object, or YAML dictionary.
         """
-        if not isinstance(src, Union[str, dict]):
+        # breakpoint()
+        if not isinstance(src, Union[str, dict, Path]):
             return self.return_value_or_error(
                 Error(
                     ValueError,
                     "src should be one of the following: a string path, "
-                    "a yaml string content,"
                     "a Path object, or Yaml dict",
                 ),
                 raise_exception,
