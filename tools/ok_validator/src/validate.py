@@ -12,8 +12,10 @@ class OKValidator:
         self.required_fields = required_fields
 
     def _validate_yaml(self, yaml_content: dict) -> bool:
-        """
-        Validate the YAML content to check if it contains the required fields.
+        """Validate the YAML content to check if it contains the required fields.
+
+        Args:
+            yaml_content: The parsed yaml dictionary.
         """
         for field in self.required_fields:
             if field not in yaml_content:
@@ -24,12 +26,16 @@ class OKValidator:
         """
         Validate the YAML source, which can be a file path, YAML content string,
         Path object, or YAML dictionary.
+
+        Args:
+            src: The string path or parsed yaml contents represented as dictionary.
+            raise_exception: Raises an exception if true otherwise returns a boolean result.
         """
         if not isinstance(src, Union[str, dict, Path]):
             return self.return_value_or_error(
                 Error(
                     ValueError,
-                    "src should be one of the following: a string path, "
+                    "`src` should be one of the following: a string path, "
                     "a Path object, or Yaml dict",
                 ),
                 raise_exception,
@@ -48,7 +54,7 @@ class OKValidator:
                     return self.return_value_or_error(
                         Error(
                             ValueError,
-                            "The YAML file is empty or contains invalid " "syntax.",
+                            "The YAML file is empty or contains invalid syntax.",
                         ),
                         raise_exception,
                     )
@@ -64,7 +70,7 @@ class OKValidator:
             )
         except yaml.YAMLError:
             return self.return_value_or_error(
-                Error(yaml.YAMLError, ""), raise_exception
+                Error(yaml.YAMLError, "The YAML file is empty or contains invalid syntax."), raise_exception
             )
 
     @staticmethod
@@ -72,7 +78,7 @@ class OKValidator:
         """Return a bool or raise an exception.
 
         Args:
-            result: exception to raise.
+            result: Exception to raise.
             raise_exception: If set to true, the provided exception will be raised.
         """
         if not raise_exception:
