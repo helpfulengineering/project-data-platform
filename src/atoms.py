@@ -3,12 +3,15 @@ from typing import Generator, Iterable, NamedTuple, Protocol
 import urllib.request
 from ghapi.all import GhApi
 import base64
+import json
+
 
 def openFileOrUrl(path: str):
-    if (path.startswith('http')):
+    if path.startswith("http"):
         return urllib.request.urlopen(path)
     else:
         return open(path, "rb")
+
 
 class SupplyAtom(NamedTuple):
     identifier: str
@@ -22,23 +25,28 @@ class SupplyAtom(NamedTuple):
     def __eq__(self, __o: object) -> bool:
         return self.identifier == __o.identifier
 
+    def forJson(self):
+        return {"id": self.identifier, "desc": self.description}
+
     @staticmethod
     def parse(yml):
         identifier = yml.get("identifier")
-        if (identifier == None):
+        if identifier == None:
             raise ValueError("missing SupplyAtom identifier")
         description = yml.get("description")
         # link = yml.get("link")
-        return SupplyAtom(identifier, description) #, link)
+        return SupplyAtom(identifier, description)  # , link)
 
     @staticmethod
     def parseArray(yml):
         atoms = []
-        if (yml == None): return atoms
+        if yml == None:
+            return atoms
         for i in range(len(yml)):
             atom = SupplyAtom.parse(yml[i])
             atoms.append(atom)
         return atoms
+
 
 class OkwParty(NamedTuple):
     name: str
@@ -60,12 +68,13 @@ class OkwParty(NamedTuple):
 
     def compatible(self, tools: Iterable[SupplyAtom]):
         # assume that a party w/o tools is not a maker and therefore not compatible with any design
-        if len(tools) == 0: 
+        if len(tools) == 0:
             return False
         for tool in tools:
             if tool not in self.tools:
                 return False
         return True
+
 
 class OkhDesign(NamedTuple):
     name: str
@@ -75,9 +84,16 @@ class OkhDesign(NamedTuple):
     bomOutputs: frozenset[SupplyAtom]
 
     @staticmethod
-    def create(name: str, product: SupplyAtom, bom: Iterable[SupplyAtom], tools: Iterable[SupplyAtom], bomOutput: Iterable[SupplyAtom]):
-        return OkhDesign(name, product, frozenset(bom), frozenset(tools), frozenset(bomOutput))
-        
+    def create(
+        name: str,
+        product: SupplyAtom,
+        bom: Iterable[SupplyAtom],
+        tools: Iterable[SupplyAtom],
+        bomOutput: Iterable[SupplyAtom],
+    ):
+        return OkhDesign(
+            name, product, frozenset(bom), frozenset(tools), frozenset(bomOutput)
+        )
 
     @staticmethod
     def slurp(path: str):
@@ -87,14 +103,18 @@ class OkhDesign(NamedTuple):
             product = SupplyAtom.parse(yml.get("product-atom"))
             bom = SupplyAtom.parseArray(yml.get("bom-atoms"))
             tools = SupplyAtom.parseArray(yml.get("tool-list-atoms"))
-            bomOutput = [] #SupplyAtom.parseArray(yml.get("bom-output-atoms"))
+            bomOutput = []  # SupplyAtom.parseArray(yml.get("bom-output-atoms"))
             return OkhDesign(name, product, bom, tools, bomOutput)
+
 
 class SupplyTree(Protocol):
     def getProduct() -> SupplyAtom:
         ...
 
     def print(indent: int):
+        ...
+
+    def forJson():
         ...
 
 
@@ -106,9 +126,18 @@ class SuppliedSupplyTree(NamedTuple):
         return self.product
 
     def print(self, indent: int):
-        buffer = ' ' * indent
-        print(buffer + "Supplier: {}/{}".format(self.supplier.name,
-              self.product.description))
+        buffer = " " * indent
+        print(
+            buffer
+            + "Supplier: {}/{}".format(self.supplier.name, self.product.description)
+        )
+
+    def forJson(self):
+        return {
+            "product": self.product.forJson(),
+            "type": "supplied",
+            "party": self.supplier.name,
+        }
 
 
 class MadeSupplyTree(NamedTuple):
@@ -121,10 +150,18 @@ class MadeSupplyTree(NamedTuple):
         return self.product
 
     def print(self, indent: int):
-        buffer = ' ' * indent
+        buffer = " " * indent
         print(buffer + "Maker: {}/{}".format(self.maker.name, self.design.name))
         for s in self.supplies:
             s.print(indent + 4)
+    def forJson(self):
+        return {
+            "product": self.product.forJson(),
+            "type": "made",
+            "party": self.maker.name,
+            "design": self.design.name,
+            "bom": [x.forJson() for x in self.supplies]
+        }
 
 
 class MissingSupplyTree(NamedTuple):
@@ -134,8 +171,11 @@ class MissingSupplyTree(NamedTuple):
         return self.product
 
     def print(self, indent: int):
-        buffer = ' ' * indent
+        buffer = " " * indent
         print(buffer + "Missing:  {}".format(self.product.description))
+
+    def forJson(self):
+        return {"product": self.product.forJson(), "type": "missing"}
 
 
 class SupplyProblemSpace(NamedTuple):
@@ -189,7 +229,6 @@ class SupplyProblemSpace(NamedTuple):
 # #  and slurp each of them a the appropriate type
 
 
-
 # #Slurp Sample
 # helpfulChair = OkhDesign.slurp("https://raw.githubusercontent.com/helpfulengineering/library/main/alpha/okh/okh-chair-helpful.yml")
 # devhawkMaker = slurpOKW("https://raw.githubusercontent.com/helpfulengineering/library/main/alpha/okw/DevhawkEngineering.okw.yml")
@@ -240,36 +279,26 @@ saw = SupplyAtom("Q125356", "saw")
 # designs
 
 chairDesign = OkhDesign.create(
-    "Funky Chair Design",
-    chair,
-    [chairLeg, chairSeat, chairBack, nails],
-    [hammer],
-    [])
+    "Funky Chair Design", chair, [chairLeg, chairSeat, chairBack, nails], [hammer], []
+)
 
-legDesign = OkhDesign.create(
-    "Leg Design",
-    chairLeg,
-    [wood],
-    [lathe],
-    [])
+legDesign = OkhDesign.create("Leg Design", chairLeg, [wood], [lathe], [])
 
-seatDesign1 = OkhDesign.create(
-    "Seat Design 1",
-    chairSeat,
-    [fabric],
-    [plane],
-    [])
+seatDesign1 = OkhDesign.create("Seat Design 1", chairSeat, [fabric], [plane], [])
 
 seatDesign2 = OkhDesign.create(
-    "Seat Design 2",
-    chairSeat,
-    [frame, stuffing, upholstery],
-    [sewingMachine],
-    [])
+    "Seat Design 2", chairSeat, [frame, stuffing, upholstery], [sewingMachine], []
+)
 
-supplierRaw = OkwParty.create("raw supplies", [nwpp, biasTape, tinTie, pipeCleaner, fabric, wood, upholstery, frame, nails], [])
+supplierRaw = OkwParty.create(
+    "raw supplies",
+    [nwpp, biasTape, tinTie, pipeCleaner, fabric, wood, upholstery, frame, nails],
+    [],
+)
 supplierRobert = OkwParty.create("Robert's Chair Parts", [chairBack, chairLeg], [])
-makerJames = OkwParty.create("James Maker Space", [], [sewingMachine, scissors, pins, measuringTape])
+makerJames = OkwParty.create(
+    "James Maker Space", [], [sewingMachine, scissors, pins, measuringTape]
+)
 makerHarry = OkwParty.create("Devhawk Engineering", [], [hammer, lathe, plane])
 
 maskDesign = OkhDesign.create(
@@ -277,14 +306,13 @@ maskDesign = OkhDesign.create(
     fabricMask,
     [nwpp, biasTape, tinTie, pipeCleaner],
     [sewingMachine, scissors, pins, scissors],
-    [scrapFabric])
+    [scrapFabric],
+)
 
 problemSpace = SupplyProblemSpace.create(
-    [supplierRaw, supplierRobert, makerJames, makerHarry], 
-    [maskDesign, chairDesign, seatDesign1, seatDesign2, legDesign])
+    [supplierRaw, supplierRobert, makerJames, makerHarry],
+    [maskDesign, chairDesign, seatDesign1, seatDesign2, legDesign],
+)
 
 for t in problemSpace.query(chair):
-    t.print(0)
-
-
-
+    print(json.dumps(t.forJson()))
