@@ -4,6 +4,7 @@ import urllib.request
 from ghapi.all import GhApi
 import base64
 import json
+from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
 
 
 def openFileOrUrl(path: str):
@@ -52,17 +53,24 @@ class OkwParty(NamedTuple):
     name: str
     supplies: frozenset[SupplyAtom]
     tools: frozenset[SupplyAtom]
+    inventory: frozenset[SupplyAtom]
 
     @staticmethod
-    def create(name: str, supplies: Iterable[SupplyAtom], tools: Iterable[SupplyAtom]):
-        return OkwParty(name, frozenset(supplies), frozenset(tools))
+    def create(
+        name: str, 
+        supplies: Iterable[SupplyAtom], 
+        tools: Iterable[SupplyAtom],
+        inventory: Iterable[SupplyAtom]
+    ):
+        return OkwParty(name, frozenset(supplies), frozenset(tools), frozenset(inventory))
 
     @staticmethod
     def parse(yml):
         name = yml.get("title")
         supplies = SupplyAtom.parseArray(yml.get("supply-atoms"))
         tools = SupplyAtom.parseArray(yml.get("tool-list-atoms"))
-        return OkwParty.create(name, supplies, tools)
+        inventory = SupplyAtom.parseArray(yml.get("inventory-atoms"))
+        return OkwParty.create(name, supplies, tools, inventory)
 
     @staticmethod
     def load(path: str):
@@ -187,32 +195,81 @@ class MissingSupplyTree(NamedTuple):
 
 
 class SupplyProblemSpace(NamedTuple):
-    parties: frozenset[OkwParty]
-    designs: frozenset[OkhDesign]
+    parties: list[OkwParty]
+    designs: list[OkhDesign]
 
     @staticmethod
     def create(parties: Iterable[OkwParty], designs: Iterable[OkhDesign]):
-        return SupplyProblemSpace(frozenset(parties), frozenset(designs))
+        return SupplyProblemSpace(list(parties), list(designs))
 
     def query(self, product: SupplyAtom) -> Generator[SupplyTree, None, None]:
         found = False
+        # first, look for a supplier of the product being queried
         for supplier in self.parties:
-            for supply in supplier.supplies:
-                if supply == product:
-                    found = True
-                    yield SuppliedSupplyTree(product, supplier)
+            if product in supplier.supplies:
+                found = True
+                yield SuppliedSupplyTree(product, supplier)
+        # next, look for a design for  the product being queried
         for design in self.designs:
             if design.product == product:
-                trees = []
-                for bom in design.bom:
-                    for tree in self.query(bom):
-                        trees.append(tree)
+                # for each compatible design, look for a maker with the appropriate tools
                 for maker in self.parties:
                     if maker.compatible(design.tools):
                         found = True
-                        yield MadeSupplyTree(product, design, maker, frozenset(trees))
+                        supplies = []
+
+                        # find a supply tree for each bom in the design
+                        for bom in design.bom:
+                            if bom in maker.inventory:
+                                supplies.append(SuppliedSupplyTree(bom, maker))
+                            else:
+                                for tree in self.query(bom):
+                                    supplies.append(tree)
+
+                        yield MadeSupplyTree(product, design, maker, frozenset(supplies))
+
+
+
+                # for bom in design.bom:
+                #     for tree in self.query(bom):
+                #         trees.append(tree)
+                # for maker in self.parties:
+                #     if maker.compatible(design.tools):
+                #         found = True
+                #         yield MadeSupplyTree(product, design, maker, frozenset(trees))
         if found == False:
             yield MissingSupplyTree(product)
+
+okh_designs = []
+okw_parties = []
+
+account_url = "https://helpfulprojectdatatemp.blob.core.windows.net"
+blob_service_client = BlobServiceClient(account_url)
+library_client = blob_service_client.get_container_client("library")
+
+okh_blobs = library_client.list_blobs(name_starts_with="beta/okh")
+for okh_blob in okh_blobs:
+    blob_client = blob_service_client.get_blob_client(container="library", blob=okh_blob)
+    downloader = blob_client.download_blob(max_concurrency=1, encoding='UTF-8')
+    blob_text = downloader.readall()
+    yml = yaml.safe_load(blob_text)
+    okh = OkhDesign.parse(yml)
+    okh_designs.append(okh)
+
+okw_blobs = library_client.list_blobs(name_starts_with="beta/okw")
+for okh_blob in okw_blobs:
+    blob_client = blob_service_client.get_blob_client(container="library", blob=okh_blob)
+    downloader = blob_client.download_blob(max_concurrency=1, encoding='UTF-8')
+    blob_text = downloader.readall()
+    yml = yaml.safe_load(blob_text)
+    okw = OkwParty.parse(yml)
+    okw_parties.append(okw)
+
+problemSpace = SupplyProblemSpace.create(okw_parties, okh_designs)
+
+for t in problemSpace.query(okh_designs[0].product):
+    # print(json.dumps(t.forJson()))
+    t.print(0)
 
 
 # # Sample code that demonstrates how to use the GhApi library to read files from GitHub
@@ -245,82 +302,82 @@ class SupplyProblemSpace(NamedTuple):
 # Mask Sample
 
 # Product atoms
-fabricMask = SupplyAtom("QH00001", "Fabric Mask")
+# fabricMask = SupplyAtom("QH00001", "Fabric Mask")
 
-# BOM atoms
-nwpp = SupplyAtom("QH00002", "Non-woven Polypropylene bag")
-biasTape = SupplyAtom("Q4902580", "Bias tape")
-tinTie = SupplyAtom("QH00003", "Coffee tin tie")
-pipeCleaner = SupplyAtom("Q3355092", "pipe cleaners")
+# # BOM atoms
+# nwpp = SupplyAtom("QH00002", "Non-woven Polypropylene bag")
+# biasTape = SupplyAtom("Q4902580", "Bias tape")
+# tinTie = SupplyAtom("QH00003", "Coffee tin tie")
+# pipeCleaner = SupplyAtom("Q3355092", "pipe cleaners")
 
-# Tool Atoms
-sewingMachine = SupplyAtom("Q49013", "Sewing machine")
-scissors = SupplyAtom("Q40847", "Scissors")
-pins = SupplyAtom("Q111591519", "Pins")
-measuringTape = SupplyAtom("Q107196205", "Measuring Tape")
+# # Tool Atoms
+# sewingMachine = SupplyAtom("Q49013", "Sewing machine")
+# scissors = SupplyAtom("Q40847", "Scissors")
+# pins = SupplyAtom("Q111591519", "Pins")
+# measuringTape = SupplyAtom("Q107196205", "Measuring Tape")
 
-# BOM Output Atoms
-scrapFabric = SupplyAtom("Q1378670", "Scrap Fabric")
+# # BOM Output Atoms
+# scrapFabric = SupplyAtom("Q1378670", "Scrap Fabric")
 
-# Chair sample
+# # Chair sample
 
-# Product atoms
-chair = SupplyAtom("Q15026", "chair")
-chairLeg = SupplyAtom("QH100", "chair leg")
-chairSeat = SupplyAtom("QH101", "chair seat")
-chairBack = SupplyAtom("QH102", "chair back")
+# # Product atoms
+# chair = SupplyAtom("Q15026", "chair")
+# chairLeg = SupplyAtom("QH100", "chair leg")
+# chairSeat = SupplyAtom("QH101", "chair seat")
+# chairBack = SupplyAtom("QH102", "chair back")
 
-# BOM atoms
-fabric = SupplyAtom("QH103", "fabric")
-wood = SupplyAtom("QH104", "wood")
-stuffing = SupplyAtom("QH105", "stuffing")
-upholstery = SupplyAtom("QH106", "upholstery")
-frame = SupplyAtom("QH107", "frame")
-nails = SupplyAtom("QH108", "nails")
+# # BOM atoms
+# fabric = SupplyAtom("QH103", "fabric")
+# wood = SupplyAtom("QH104", "wood")
+# stuffing = SupplyAtom("QH105", "stuffing")
+# upholstery = SupplyAtom("QH106", "upholstery")
+# frame = SupplyAtom("QH107", "frame")
+# nails = SupplyAtom("QH108", "nails")
 
-# Tool Atoms
-plane = SupplyAtom("Q204260", "plane")
-lathe = SupplyAtom("Q187833", "lathe")
-hammer = SupplyAtom("Q25294", "hammer")
-saw = SupplyAtom("Q125356", "saw")
+# # Tool Atoms
+# plane = SupplyAtom("Q204260", "plane")
+# lathe = SupplyAtom("Q187833", "lathe")
+# hammer = SupplyAtom("Q25294", "hammer")
+# saw = SupplyAtom("Q125356", "saw")
 
-# designs
+# # designs
 
-chairDesign = OkhDesign.create(
-    "Funky Chair Design", chair, [chairLeg, chairSeat, chairBack, nails], [hammer], []
-)
+# chairDesign = OkhDesign.create(
+#     "Funky Chair Design", chair, [chairLeg, chairSeat, chairBack, nails], [hammer], []
+# )
 
-legDesign = OkhDesign.create("Leg Design", chairLeg, [wood], [lathe], [])
+# legDesign = OkhDesign.create("Leg Design", chairLeg, [wood], [lathe], [])
 
-seatDesign1 = OkhDesign.create("Seat Design 1", chairSeat, [fabric], [plane], [])
+# seatDesign1 = OkhDesign.create("Seat Design 1", chairSeat, [fabric], [plane], [])
 
-seatDesign2 = OkhDesign.create(
-    "Seat Design 2", chairSeat, [frame, stuffing, upholstery], [sewingMachine], []
-)
+# seatDesign2 = OkhDesign.create(
+#     "Seat Design 2", chairSeat, [frame, stuffing, upholstery], [sewingMachine], []
+# )
 
-supplierRaw = OkwParty.create(
-    "raw supplies",
-    [nwpp, biasTape, tinTie, pipeCleaner, fabric, wood, upholstery, frame, nails],
-    [],
-)
-supplierRobert = OkwParty.create("Robert's Chair Parts", [chairBack, chairLeg], [])
-makerJames = OkwParty.create(
-    "James Maker Space", [], [sewingMachine, scissors, pins, measuringTape]
-)
-makerHarry = OkwParty.create("Devhawk Engineering", [], [hammer, lathe, plane])
+# supplierRaw = OkwParty.create(
+#     "raw supplies",
+#     [nwpp, biasTape, tinTie, pipeCleaner, fabric, wood, upholstery, frame, nails],
+#     [],
+# )
+# supplierRobert = OkwParty.create("Robert's Chair Parts", [chairBack, chairLeg], [])
+# makerJames = OkwParty.create(
+#     "James Maker Space", [], [sewingMachine, scissors, pins, measuringTape]
+# )
+# makerHarry = OkwParty.create("Devhawk Engineering", [], [hammer, lathe, plane])
 
-maskDesign = OkhDesign.create(
-    "Surge Mask",
-    fabricMask,
-    [nwpp, biasTape, tinTie, pipeCleaner],
-    [sewingMachine, scissors, pins, scissors],
-    [scrapFabric],
-)
+# maskDesign = OkhDesign.create(
+#     "Surge Mask",
+#     fabricMask,
+#     [nwpp, biasTape, tinTie, pipeCleaner],
+#     [sewingMachine, scissors, pins, scissors],
+#     [scrapFabric],
+# )
 
-problemSpace = SupplyProblemSpace.create(
-    [supplierRaw, supplierRobert, makerJames, makerHarry],
-    [maskDesign, chairDesign, seatDesign1, seatDesign2, legDesign],
-)
+# problemSpace = SupplyProblemSpace.create(
+#     [supplierRaw, supplierRobert, makerJames, makerHarry],
+#     [maskDesign, chairDesign, seatDesign1, seatDesign2, legDesign],
+# )
 
-for t in problemSpace.query(chair):
-    print(json.dumps(t.forJson()))
+# for t in problemSpace.query(chair):
+#     print(json.dumps(t.forJson()))
