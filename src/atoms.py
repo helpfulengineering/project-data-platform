@@ -58,13 +58,17 @@ class OkwParty(NamedTuple):
         return OkwParty(name, frozenset(supplies), frozenset(tools))
 
     @staticmethod
-    def parse(path: str):
+    def parse(yml):
+        name = yml.get("title")
+        supplies = SupplyAtom.parseArray(yml.get("supply-atoms"))
+        tools = SupplyAtom.parseArray(yml.get("tool-list-atoms"))
+        return OkwParty.create(name, supplies, tools)
+
+    @staticmethod
+    def load(path: str):
         with openFileOrUrl(path) as file_stream:
             yml = yaml.safe_load(file_stream)
-            name = yml.get("title")
-            supplies = SupplyAtom.parseArray(yml.get("supply-atoms"))
-            tools = SupplyAtom.parseArray(yml.get("tool-list-atoms"))
-            return OkwParty.create(name, supplies, tools)
+            return OkwParty.parse(yml)
 
     def compatible(self, tools: Iterable[SupplyAtom]):
         # assume that a party w/o tools is not a maker and therefore not compatible with any design
@@ -95,16 +99,20 @@ class OkhDesign(NamedTuple):
             name, product, frozenset(bom), frozenset(tools), frozenset(bomOutput)
         )
 
+    @staticmethod 
+    def parse(yml):
+        name = yml.get("title")
+        product = SupplyAtom.parse(yml.get("product-atom"))
+        bom = SupplyAtom.parseArray(yml.get("bom-atoms"))
+        tools = SupplyAtom.parseArray(yml.get("tool-list-atoms"))
+        bomOutput = []  # SupplyAtom.parseArray(yml.get("bom-output-atoms"))
+        return OkhDesign(name, product, bom, tools, bomOutput)
+
     @staticmethod
-    def slurp(path: str):
+    def load(path: str):
         with openFileOrUrl(path) as file_stream:
             yml = yaml.safe_load(file_stream)
-            name = yml.get("title")
-            product = SupplyAtom.parse(yml.get("product-atom"))
-            bom = SupplyAtom.parseArray(yml.get("bom-atoms"))
-            tools = SupplyAtom.parseArray(yml.get("tool-list-atoms"))
-            bomOutput = []  # SupplyAtom.parseArray(yml.get("bom-output-atoms"))
-            return OkhDesign(name, product, bom, tools, bomOutput)
+            return OkhDesign.parse(yml)
 
 
 class SupplyTree(Protocol):
