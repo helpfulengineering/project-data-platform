@@ -1,10 +1,9 @@
 import yaml
 from typing import Generator, Iterable, NamedTuple, Protocol
 import urllib.request
-from ghapi.all import GhApi
-import base64
 import json
-from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
+import boto3
+import botocore
 
 
 def openFileOrUrl(path: str):
@@ -57,12 +56,14 @@ class OkwParty(NamedTuple):
 
     @staticmethod
     def create(
-        name: str, 
-        supplies: Iterable[SupplyAtom], 
+        name: str,
+        supplies: Iterable[SupplyAtom],
         tools: Iterable[SupplyAtom],
-        inventory: Iterable[SupplyAtom]
+        inventory: Iterable[SupplyAtom],
     ):
-        return OkwParty(name, frozenset(supplies), frozenset(tools), frozenset(inventory))
+        return OkwParty(
+            name, frozenset(supplies), frozenset(tools), frozenset(inventory)
+        )
 
     @staticmethod
     def parse(yml):
@@ -107,7 +108,7 @@ class OkhDesign(NamedTuple):
             name, product, frozenset(bom), frozenset(tools), frozenset(bomOutput)
         )
 
-    @staticmethod 
+    @staticmethod
     def parse(yml):
         name = yml.get("title")
         product = SupplyAtom.parse(yml.get("product-atom"))
@@ -170,13 +171,14 @@ class MadeSupplyTree(NamedTuple):
         print(buffer + "Maker: {}/{}".format(self.maker.name, self.design.name))
         for s in self.supplies:
             s.print(indent + 4)
+
     def forJson(self):
         return {
             "product": self.product.forJson(),
             "type": "made",
             "party": self.maker.name,
             "design": self.design.name,
-            "bom": [x.forJson() for x in self.supplies]
+            "bom": [x.forJson() for x in self.supplies],
         }
 
 
@@ -226,158 +228,38 @@ class SupplyProblemSpace(NamedTuple):
                                 for tree in self.query(bom):
                                     supplies.append(tree)
 
-                        yield MadeSupplyTree(product, design, maker, frozenset(supplies))
-
-
-
-                # for bom in design.bom:
-                #     for tree in self.query(bom):
-                #         trees.append(tree)
-                # for maker in self.parties:
-                #     if maker.compatible(design.tools):
-                #         found = True
-                #         yield MadeSupplyTree(product, design, maker, frozenset(trees))
+                        yield MadeSupplyTree(
+                            product, design, maker, frozenset(supplies)
+                        )
         if found == False:
             yield MissingSupplyTree(product)
 
-okh_designs = []
-okw_parties = []
 
-account_url = "https://helpfulprojectdatatemp.blob.core.windows.net"
-blob_service_client = BlobServiceClient(account_url)
-library_client = blob_service_client.get_container_client("library")
+config = botocore.client.Config(signature_version=botocore.UNSIGNED)
+s3Client = boto3.client("s3", config=config)
 
-okh_blobs = library_client.list_blobs(name_starts_with="beta/okh")
-for okh_blob in okh_blobs:
-    blob_client = blob_service_client.get_blob_client(container="library", blob=okh_blob)
-    downloader = blob_client.download_blob(max_concurrency=1, encoding='UTF-8')
-    blob_text = downloader.readall()
-    yml = yaml.safe_load(blob_text)
-    okh = OkhDesign.parse(yml)
-    okh_designs.append(okh)
 
-okw_blobs = library_client.list_blobs(name_starts_with="beta/okw")
-for okh_blob in okw_blobs:
-    blob_client = blob_service_client.get_blob_client(container="library", blob=okh_blob)
-    downloader = blob_client.download_blob(max_concurrency=1, encoding='UTF-8')
-    blob_text = downloader.readall()
-    yml = yaml.safe_load(blob_text)
-    okw = OkwParty.parse(yml)
-    okw_parties.append(okw)
+def readBucketFolder(bucket: str, prefix: str, parseYaml):
+    collection = []
+    paginator = s3Client.get_paginator("list_objects_v2")
+    iterator = paginator.paginate(Bucket=bucket, Prefix=prefix)
+    for page in iterator:
+        for object in page["Contents"]:
+            obj = s3Client.get_object(Bucket=bucket, Key=object["Key"])
+            text = obj["Body"].read()
+            yml = yaml.safe_load(text)
+            collection.append(parseYaml(yml))
+    return collection
+
+
+bucket = "github-helpfulengineering-library"
+okh_designs = readBucketFolder(bucket, "beta/okh", OkhDesign.parse)
+okw_parties = readBucketFolder(bucket, "beta/okw", OkwParty.parse)
 
 problemSpace = SupplyProblemSpace.create(okw_parties, okh_designs)
 
-for t in problemSpace.query(okh_designs[0].product):
-    # print(json.dumps(t.forJson()))
-    t.print(0)
+results = []
+for supplyTree in problemSpace.query(okh_designs[0].product):
+    results.append(supplyTree.forJson())
 
-
-# # Sample code that demonstrates how to use the GhApi library to read files from GitHub
-
-# # create a ghapi client for the helpfulengineering/library repo
-# api = GhApi(owner='helpfulengineering', repo='library')
-# # get the main branch
-# ref = api.git.get_ref('heads/main')
-# # get the commit for the main branch
-# commit = api.git.get_commit(ref.object.sha)
-# # get the tree for the commit
-# tree = api.git.get_tree(commit.tree.sha)
-# # find the root README.md blob ref
-# readmeItem = next(filter(lambda x: x.path == "README.md", tree.tree.items))
-# # get the blob for the README.md
-# readmeBlob = api.git.get_blob(readmeItem.sha)
-# # decode the blob's base64 encoded content
-# readmeContent = base64.b64decode(readmeBlob.content)
-
-# # todo:
-# #  get a list of all the .yaml files in the beta/okw and beta/okh folders
-# #  and slurp each of them a the appropriate type
-
-
-# #Slurp Sample
-# helpfulChair = OkhDesign.slurp("https://raw.githubusercontent.com/helpfulengineering/library/main/alpha/okh/okh-chair-helpful.yml")
-# devhawkMaker = slurpOKW("https://raw.githubusercontent.com/helpfulengineering/library/main/alpha/okw/DevhawkEngineering.okw.yml")
-# chairPartSupplier = slurpOKW("https://raw.githubusercontent.com/helpfulengineering/library/main/alpha/okw/ChairParts.okw.yml")
-
-# Mask Sample
-
-# Product atoms
-# fabricMask = SupplyAtom("QH00001", "Fabric Mask")
-
-# # BOM atoms
-# nwpp = SupplyAtom("QH00002", "Non-woven Polypropylene bag")
-# biasTape = SupplyAtom("Q4902580", "Bias tape")
-# tinTie = SupplyAtom("QH00003", "Coffee tin tie")
-# pipeCleaner = SupplyAtom("Q3355092", "pipe cleaners")
-
-# # Tool Atoms
-# sewingMachine = SupplyAtom("Q49013", "Sewing machine")
-# scissors = SupplyAtom("Q40847", "Scissors")
-# pins = SupplyAtom("Q111591519", "Pins")
-# measuringTape = SupplyAtom("Q107196205", "Measuring Tape")
-
-# # BOM Output Atoms
-# scrapFabric = SupplyAtom("Q1378670", "Scrap Fabric")
-
-# # Chair sample
-
-# # Product atoms
-# chair = SupplyAtom("Q15026", "chair")
-# chairLeg = SupplyAtom("QH100", "chair leg")
-# chairSeat = SupplyAtom("QH101", "chair seat")
-# chairBack = SupplyAtom("QH102", "chair back")
-
-# # BOM atoms
-# fabric = SupplyAtom("QH103", "fabric")
-# wood = SupplyAtom("QH104", "wood")
-# stuffing = SupplyAtom("QH105", "stuffing")
-# upholstery = SupplyAtom("QH106", "upholstery")
-# frame = SupplyAtom("QH107", "frame")
-# nails = SupplyAtom("QH108", "nails")
-
-# # Tool Atoms
-# plane = SupplyAtom("Q204260", "plane")
-# lathe = SupplyAtom("Q187833", "lathe")
-# hammer = SupplyAtom("Q25294", "hammer")
-# saw = SupplyAtom("Q125356", "saw")
-
-# # designs
-
-# chairDesign = OkhDesign.create(
-#     "Funky Chair Design", chair, [chairLeg, chairSeat, chairBack, nails], [hammer], []
-# )
-
-# legDesign = OkhDesign.create("Leg Design", chairLeg, [wood], [lathe], [])
-
-# seatDesign1 = OkhDesign.create("Seat Design 1", chairSeat, [fabric], [plane], [])
-
-# seatDesign2 = OkhDesign.create(
-#     "Seat Design 2", chairSeat, [frame, stuffing, upholstery], [sewingMachine], []
-# )
-
-# supplierRaw = OkwParty.create(
-#     "raw supplies",
-#     [nwpp, biasTape, tinTie, pipeCleaner, fabric, wood, upholstery, frame, nails],
-#     [],
-# )
-# supplierRobert = OkwParty.create("Robert's Chair Parts", [chairBack, chairLeg], [])
-# makerJames = OkwParty.create(
-#     "James Maker Space", [], [sewingMachine, scissors, pins, measuringTape]
-# )
-# makerHarry = OkwParty.create("Devhawk Engineering", [], [hammer, lathe, plane])
-
-# maskDesign = OkhDesign.create(
-#     "Surge Mask",
-#     fabricMask,
-#     [nwpp, biasTape, tinTie, pipeCleaner],
-#     [sewingMachine, scissors, pins, scissors],
-#     [scrapFabric],
-# )
-
-# problemSpace = SupplyProblemSpace.create(
-#     [supplierRaw, supplierRobert, makerJames, makerHarry],
-#     [maskDesign, chairDesign, seatDesign1, seatDesign2, legDesign],
-# )
-
-# for t in problemSpace.query(chair):
-#     print(json.dumps(t.forJson()))
+print(json.dumps(results))
