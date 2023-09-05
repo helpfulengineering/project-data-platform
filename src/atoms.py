@@ -1,12 +1,17 @@
 import yaml
 from typing import Generator, Iterable, NamedTuple, Protocol
 import urllib.request
+import json
+import boto3
+import botocore
+
 
 def openFileOrUrl(path: str):
-    if (path.startswith('http')):
+    if path.startswith("http"):
         return urllib.request.urlopen(path)
     else:
         return open(path, "rb")
+
 
 class SupplyAtom(NamedTuple):
     identifier: str
@@ -20,71 +25,71 @@ class SupplyAtom(NamedTuple):
     def __eq__(self, __o: object) -> bool:
         return self.identifier == __o.identifier
 
+    def forJson(self):
+        return {"id": self.identifier, "desc": self.description}
+
     @staticmethod
     def parse(yml):
         identifier = yml.get("identifier")
-        if (identifier == None):
+        if identifier == None:
             raise ValueError("missing SupplyAtom identifier")
         description = yml.get("description")
         # link = yml.get("link")
-        return SupplyAtom(identifier, description) #, link)
+        return SupplyAtom(identifier, description)  # , link)
 
     @staticmethod
     def parseArray(yml):
         atoms = []
-        if (yml == None): return atoms
+        if yml == None:
+            return atoms
         for i in range(len(yml)):
             atom = SupplyAtom.parse(yml[i])
             atoms.append(atom)
         return atoms
 
-class MakerSupplier(NamedTuple):
+
+class OkwParty(NamedTuple):
     name: str
     supplies: frozenset[SupplyAtom]
     tools: frozenset[SupplyAtom]
+    inventory: frozenset[SupplyAtom]
 
     @staticmethod
-    def create(name: str, supplies: Iterable[SupplyAtom], tools: Iterable[SupplyAtom]):
-        return MakerSupplier(name, frozenset(supplies), frozenset(tools))
-
-class Supplier(NamedTuple):
-    name: str
-    supplies: frozenset[SupplyAtom]
-
-    @staticmethod
-    def create(name: str, supplies: Iterable[SupplyAtom]):
-        return Supplier(name, frozenset(supplies))
-
-
-class Maker(NamedTuple):
-    name: str
-    tools: frozenset[SupplyAtom]
+    def create(
+        name: str,
+        supplies: Iterable[SupplyAtom],
+        tools: Iterable[SupplyAtom],
+        inventory: Iterable[SupplyAtom],
+    ):
+        return OkwParty(
+            name, frozenset(supplies), frozenset(tools), frozenset(inventory)
+        )
 
     @staticmethod
-    def create(name: str, tools: Iterable[SupplyAtom]):
-        return Maker(name, frozenset(tools))
+    def parse(yml):
+        name = yml.get("title")
+        supplies = SupplyAtom.parseArray(yml.get("supply-atoms"))
+        tools = SupplyAtom.parseArray(yml.get("tool-list-atoms"))
+        inventory = SupplyAtom.parseArray(yml.get("inventory-atoms"))
+        return OkwParty.create(name, supplies, tools, inventory)
+
+    @staticmethod
+    def load(path: str):
+        with openFileOrUrl(path) as file_stream:
+            yml = yaml.safe_load(file_stream)
+            return OkwParty.parse(yml)
 
     def compatible(self, tools: Iterable[SupplyAtom]):
+        # assume that a party w/o tools is not a maker and therefore not compatible with any design
+        if len(tools) == 0:
+            return False
         for tool in tools:
             if tool not in self.tools:
                 return False
         return True
 
 
-def slurpOKW(path: str):
-    with openFileOrUrl(path) as file_stream:
-        yml = yaml.safe_load(file_stream)
-        name = yml.get("title")
-        supplies = SupplyAtom.parseArray(yml.get("supply-atoms"))
-        tools = SupplyAtom.parseArray(yml.get("tool-list-atoms"))
-        toolCount = len(tools)
-        if (len(supplies) == 0):
-            if (toolCount == 0): raise ValueError("Invalid OKW")
-            return Maker.create(name, tools)
-        else:
-            return Supplier.create(name, supplies) if (toolCount == 0) else MakerSupplier.create(name, supplies, tools)
-
-class ProductDesign(NamedTuple):
+class OkhDesign(NamedTuple):
     name: str
     product: SupplyAtom
     bom: frozenset[SupplyAtom]
@@ -92,20 +97,32 @@ class ProductDesign(NamedTuple):
     bomOutputs: frozenset[SupplyAtom]
 
     @staticmethod
-    def create(name: str, product: SupplyAtom, bom: Iterable[SupplyAtom], tools: Iterable[SupplyAtom], bomOutput: Iterable[SupplyAtom]):
-        return ProductDesign(name, product, frozenset(bom), frozenset(tools), frozenset(bomOutput))
-        
+    def create(
+        name: str,
+        product: SupplyAtom,
+        bom: Iterable[SupplyAtom],
+        tools: Iterable[SupplyAtom],
+        bomOutput: Iterable[SupplyAtom],
+    ):
+        return OkhDesign(
+            name, product, frozenset(bom), frozenset(tools), frozenset(bomOutput)
+        )
 
     @staticmethod
-    def slurp(path: str):
+    def parse(yml):
+        name = yml.get("title")
+        product = SupplyAtom.parse(yml.get("product-atom"))
+        bom = SupplyAtom.parseArray(yml.get("bom-atoms"))
+        tools = SupplyAtom.parseArray(yml.get("tool-list-atoms"))
+        bomOutput = []  # SupplyAtom.parseArray(yml.get("bom-output-atoms"))
+        return OkhDesign(name, product, bom, tools, bomOutput)
+
+    @staticmethod
+    def load(path: str):
         with openFileOrUrl(path) as file_stream:
             yml = yaml.safe_load(file_stream)
-            name = yml.get("title")
-            product = SupplyAtom.parse(yml.get("product-atom"))
-            bom = SupplyAtom.parseArray(yml.get("bom-atoms"))
-            tools = SupplyAtom.parseArray(yml.get("tool-list-atoms"))
-            bomOutput = [] #SupplyAtom.parseArray(yml.get("bom-output-atoms"))
-            return ProductDesign(name, product, bom, tools, bomOutput)
+            return OkhDesign.parse(yml)
+
 
 class SupplyTree(Protocol):
     def getProduct() -> SupplyAtom:
@@ -114,34 +131,55 @@ class SupplyTree(Protocol):
     def print(indent: int):
         ...
 
+    def forJson():
+        ...
 
-class SupplierSupplyTree(NamedTuple):
+
+class SuppliedSupplyTree(NamedTuple):
     product: SupplyAtom
-    supplier: Supplier
+    supplier: OkwParty
 
     def getProduct(self):
         return self.product
 
     def print(self, indent: int):
-        buffer = ' ' * indent
-        print(buffer + "Supplier: {}/{}".format(self.supplier.name,
-              self.product.description))
+        buffer = " " * indent
+        print(
+            buffer
+            + "Supplier: {}/{}".format(self.supplier.name, self.product.description)
+        )
+
+    def forJson(self):
+        return {
+            "product": self.product.forJson(),
+            "type": "supplied",
+            "party": self.supplier.name,
+        }
 
 
-class MakerSupplyTree(NamedTuple):
+class MadeSupplyTree(NamedTuple):
     product: SupplyAtom
-    design: ProductDesign
-    maker: Maker
+    design: OkhDesign
+    maker: OkwParty
     supplies: frozenset[SupplyTree]
 
     def getProduct(self):
         return self.product
 
     def print(self, indent: int):
-        buffer = ' ' * indent
+        buffer = " " * indent
         print(buffer + "Maker: {}/{}".format(self.maker.name, self.design.name))
         for s in self.supplies:
             s.print(indent + 4)
+
+    def forJson(self):
+        return {
+            "product": self.product.forJson(),
+            "type": "made",
+            "party": self.maker.name,
+            "design": self.design.name,
+            "bom": [x.forJson() for x in self.supplies],
+        }
 
 
 class MissingSupplyTree(NamedTuple):
@@ -151,138 +189,77 @@ class MissingSupplyTree(NamedTuple):
         return self.product
 
     def print(self, indent: int):
-        buffer = ' ' * indent
+        buffer = " " * indent
         print(buffer + "Missing:  {}".format(self.product.description))
+
+    def forJson(self):
+        return {"product": self.product.forJson(), "type": "missing"}
 
 
 class SupplyProblemSpace(NamedTuple):
-    suppliers: frozenset[Supplier]
-    makers: frozenset[Maker]
-    designs: frozenset[ProductDesign]
+    parties: list[OkwParty]
+    designs: list[OkhDesign]
 
     @staticmethod
-    def create(suppliers: Iterable[Supplier], makers: Iterable[Maker], designs: Iterable[ProductDesign]):
-        return SupplyProblemSpace(frozenset(suppliers), frozenset(makers), frozenset(designs))
+    def create(parties: Iterable[OkwParty], designs: Iterable[OkhDesign]):
+        return SupplyProblemSpace(list(parties), list(designs))
 
     def query(self, product: SupplyAtom) -> Generator[SupplyTree, None, None]:
         found = False
-        for supplier in self.suppliers:
-            for supply in supplier.supplies:
-                if supply == product:
-                    found = True
-                    yield SupplierSupplyTree(product, supplier)
+        # first, look for a supplier of the product being queried
+        for supplier in self.parties:
+            if product in supplier.supplies:
+                found = True
+                yield SuppliedSupplyTree(product, supplier)
+        # next, look for a design for  the product being queried
         for design in self.designs:
             if design.product == product:
-                trees = []
-                for bom in design.bom:
-                    for tree in self.query(bom):
-                        trees.append(tree)
-                for maker in self.makers:
+                # for each compatible design, look for a maker with the appropriate tools
+                for maker in self.parties:
                     if maker.compatible(design.tools):
                         found = True
-                        yield MakerSupplyTree(product, design, maker, frozenset(trees))
+                        supplies = []
+
+                        # find a supply tree for each bom in the design
+                        for bom in design.bom:
+                            if bom in maker.inventory:
+                                supplies.append(SuppliedSupplyTree(bom, maker))
+                            else:
+                                for tree in self.query(bom):
+                                    supplies.append(tree)
+
+                        yield MadeSupplyTree(
+                            product, design, maker, frozenset(supplies)
+                        )
         if found == False:
             yield MissingSupplyTree(product)
 
 
-#Slurp Sample
-helpfulChair = ProductDesign.slurp("https://raw.githubusercontent.com/helpfulengineering/library/main/alpha/okh/okh-chair-helpful.yml")
-devhawkMaker = slurpOKW("https://raw.githubusercontent.com/helpfulengineering/library/main/alpha/okw/DevhawkEngineering.okw.yml")
-chairPartSupplier = slurpOKW("https://raw.githubusercontent.com/helpfulengineering/library/main/alpha/okw/ChairParts.okw.yml")
-
-# Mask Sample
-
-# Product atoms
-fabricMask = SupplyAtom("QH00001", "Fabric Mask")
-
-# BOM atoms
-nwpp = SupplyAtom("QH00002", "Non-woven Polypropylene bag")
-biasTape = SupplyAtom("Q4902580", "Bias tape")
-tinTie = SupplyAtom("QH00003", "Coffee tin tie")
-pipeCleaner = SupplyAtom("Q3355092", "pipe cleaners")
-
-# Tool Atoms
-sewingMachine = SupplyAtom("Q49013", "Sewing machine")
-scissors = SupplyAtom("Q40847", "Scissors")
-pins = SupplyAtom("Q111591519", "Pins")
-measuringTape = SupplyAtom("Q107196205", "Measuring Tape")
-
-# BOM Output Atoms
-scrapFabric = SupplyAtom("Q1378670", "Scrap Fabric")
-
-# Chair sample
-
-# Product atoms
-chair = SupplyAtom("Q15026", "chair")
-chairLeg = SupplyAtom("QH100", "chair leg")
-chairSeat = SupplyAtom("QH101", "chair seat")
-chairBack = SupplyAtom("QH102", "chair back")
-
-# BOM atoms
-fabric = SupplyAtom("QH103", "fabric")
-wood = SupplyAtom("QH104", "wood")
-stuffing = SupplyAtom("QH105", "stuffing")
-upholstery = SupplyAtom("QH106", "upholstery")
-frame = SupplyAtom("QH107", "frame")
-nails = SupplyAtom("QH108", "nails")
-
-# Tool Atoms
-plane = SupplyAtom("Q204260", "plane")
-lathe = SupplyAtom("Q187833", "lathe")
-hammer = SupplyAtom("Q25294", "hammer")
-saw = SupplyAtom("Q125356", "saw")
-
-# designs
-
-chairDesign = ProductDesign.create(
-    "Funky Chair Design",
-    chair,
-    [chairLeg, chairSeat, chairBack, nails],
-    [hammer],
-    [])
-
-legDesign = ProductDesign.create(
-    "Leg Design",
-    chairLeg,
-    [wood],
-    [lathe],
-    [])
-
-seatDesign1 = ProductDesign.create(
-    "Seat Design 1",
-    chairSeat,
-    [fabric],
-    [plane],
-    [])
-
-seatDesign2 = ProductDesign.create(
-    "Seat Design 2",
-    chairSeat,
-    [frame, stuffing, upholstery],
-    [sewingMachine],
-    [])
-
-supplierRaw = Supplier.create("raw supplies",
-                              [nwpp, biasTape, tinTie, pipeCleaner, fabric, wood, upholstery, frame, nails])
-
-supplierRobert = Supplier.create("Robert's Chair Parts", [chairBack, chairLeg])
-
-makerJames = Maker.create("James Maker Space", [
-                          sewingMachine, scissors, pins, measuringTape])
-makerHarry = Maker.create("Devhawk Engineering", [hammer, lathe, plane])
-
-maskDesign = ProductDesign.create(
-    "Surge Mask",
-    fabricMask,
-    [nwpp, biasTape, tinTie, pipeCleaner],
-    [sewingMachine, scissors, pins, scissors],
-    [scrapFabric])
-
-problemSpace = SupplyProblemSpace.create(
-    [supplierRaw, supplierRobert], [makerJames, makerHarry], [maskDesign, chairDesign, seatDesign1, seatDesign2, legDesign])
-
-for t in problemSpace.query(chair):
-    t.print(0)
+config = botocore.client.Config(signature_version=botocore.UNSIGNED)
+s3Client = boto3.client("s3", config=config)
 
 
+def readBucketFolder(bucket: str, prefix: str, parseYaml):
+    collection = []
+    paginator = s3Client.get_paginator("list_objects_v2")
+    iterator = paginator.paginate(Bucket=bucket, Prefix=prefix)
+    for page in iterator:
+        for object in page["Contents"]:
+            obj = s3Client.get_object(Bucket=bucket, Key=object["Key"])
+            text = obj["Body"].read()
+            yml = yaml.safe_load(text)
+            collection.append(parseYaml(yml))
+    return collection
 
+
+bucket = "github-helpfulengineering-library"
+okh_designs = readBucketFolder(bucket, "beta/okh", OkhDesign.parse)
+okw_parties = readBucketFolder(bucket, "beta/okw", OkwParty.parse)
+
+problemSpace = SupplyProblemSpace.create(okw_parties, okh_designs)
+
+results = []
+for supplyTree in problemSpace.query(okh_designs[0].product):
+    results.append(supplyTree.forJson())
+
+print(json.dumps(results))
