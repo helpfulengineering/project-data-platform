@@ -1,0 +1,107 @@
+{
+	"product": {
+		"id": "Q15026",
+		"desc": "chair"
+	},
+	"type": "made",
+	"party": "Devhawk Engineering",
+	"design": "Funky Chair Design",
+	"bom": [
+		{
+			"product": {
+				"id": "QH100",
+				"desc": "chair leg"
+			},
+			"type": "supplied",
+			"party": "Robert's Chair Parts"
+		},
+		{
+			"product": {
+				"id": "QH108",
+				"desc": "nails"
+			},
+			"type": "supplied",
+			"party": "raw supplies"
+		},
+		{
+			"product": {
+				"id": "QH102",
+				"desc": "chair back"
+			},
+			"type": "supplied",
+			"party": "Robert's Chair Parts"
+		},
+		{
+			"product": {
+				"id": "QH100",
+				"desc": "chair leg"
+			},
+			"type": "made",
+			"party": "Devhawk Engineering",
+			"design": "Leg Design",
+			"bom": [
+				{
+					"product": {
+						"id": "QH104",
+						"desc": "wood"
+					},
+					"type": "supplied",
+					"party": "raw supplies"
+				}
+			]
+		},
+		{
+			"product": {
+				"id": "QH101",
+				"desc": "chair seat"
+			},
+			"type": "made",
+			"party": "James Maker Space",
+			"design": "Seat Design 2",
+			"bom": [
+				{
+					"product": {
+						"id": "QH107",
+						"desc": "frame"
+					},
+					"type": "supplied",
+					"party": "raw supplies"
+				},
+				{
+					"product": {
+						"id": "QH106",
+						"desc": "upholstery"
+					},
+					"type": "supplied",
+					"party": "raw supplies"
+				},
+				{
+					"product": {
+						"id": "QH105",
+						"desc": "stuffing"
+					},
+					"type": "missing"
+				}
+			]
+		},
+		{
+			"product": {
+				"id": "QH101",
+				"desc": "chair seat"
+			},
+			"type": "made",
+			"party": "Devhawk Engineering",
+			"design": "Seat Design 1",
+			"bom": [
+				{
+					"product": {
+						"id": "QH103",
+						"desc": "fabric"
+					},
+					"type": "supplied",
+					"party": "raw supplies"
+				}
+			]
+		}
+	]
+}
