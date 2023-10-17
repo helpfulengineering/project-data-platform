@@ -156,6 +156,26 @@ class SuppliedSupplyTree(NamedTuple):
             "party": self.supplier.name,
         }
 
+class InventorySupplyTree(NamedTuple):
+    product: SupplyAtom
+    maker: OkwParty
+
+    def getProduct(self):
+        return self.product
+
+    def print(self, indent: int):
+        buffer = " " * indent
+        print(
+            buffer
+            + "Maker Inventory: {}/{}".format(self.supplier.name, self.product.description)
+        )
+
+    def forJson(self):
+        return {
+            "product": self.product.forJson(),
+            "type": "inventory",
+            # "party": self.maker.name,
+        }
 
 class MadeSupplyTree(NamedTuple):
     product: SupplyAtom
@@ -223,7 +243,7 @@ class SupplyProblemSpace(NamedTuple):
                         # find a supply tree for each bom in the design
                         for bom in design.bom:
                             if bom in maker.inventory:
-                                supplies.append(SuppliedSupplyTree(bom, maker))
+                                supplies.append(InventorySupplyTree(bom, maker))
                             else:
                                 for tree in self.query(bom):
                                     supplies.append(tree)
