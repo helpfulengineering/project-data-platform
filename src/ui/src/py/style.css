@@ -1,0 +1,88 @@
+body {
+	font-family: helvetica neue, helvetica, liberation sans, arial, sans-serif;
+	color: #fff;
+	font-size: 14px;
+}
+
+#cy {
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	right: 0;
+	background-color: black;
+	z-index: 999;
+}
+
+.data-panel {
+	font-size: 1.15rem;
+	position: fixed;
+	border: 2px solid #333;
+	border-radius: 3px;
+	background: rgba(0, 0, 0, 0.75);
+	top: 1rem;
+	right: 1rem;
+	z-index: 40000;
+	display: flex;
+	flex-direction: column;
+}
+
+.data-panel > span:first-child {
+	margin-top: 0rem;
+}
+
+.data-panel > span {
+	margin-top: 0.9rem;
+	padding: 0.33rem 0.75rem;
+	background: #333;
+}
+
+.data-panel > div {
+	padding: 0.5rem;
+}
+
+table {
+	display: table;
+	border-collapse: separate;
+	box-sizing: border-box;
+	text-indent: initial;
+	border-spacing: 2px;
+	border-color: gray;
+}
+
+tr {
+	display: table-row;
+	vertical-align: inherit;
+	border-color: inherit;
+}
+
+table > tr {
+	vertical-align: middle;
+}
+
+td {
+	display: table-cell;
+	vertical-align: inherit;
+}
+
+.limited {
+	display: block;
+	max-width: min(60ch, 40vw);
+	overflow-wrap: break-word;
+}
+
+.atab td:first-child {
+	color: #aaa;
+	padding-right: 1.5rem;
+}
+
+/* makes sticky faster; disable if you want animated tippies */
+.tippy-popper {
+	transition: none !important;
+}
+
+.fullscreen {
+	width: 100%;
+	height: 500px;
+	background-color: black;
+}
