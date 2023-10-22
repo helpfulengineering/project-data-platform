@@ -1,6 +1,5 @@
 import pytest
 
-from tools.ok_validator.src.validate import OKValidator
 from tools.ok_validator.src.okh import OKHValidator
 
 
@@ -9,7 +8,8 @@ def okh_string():
     return """
 title: mock okh title.
 description: mock description for okh.
-bom: mock bom field.
+bom: 
+  - mock bom field.
         """
 
 
@@ -27,18 +27,13 @@ def okh_dict():
     return {
         "title": "mock okh title.",
         "description": "mock description for okh.",
-        "bom": "mock bom field.",
+        "bom": ["mock bom field."],
     }
 
 
 @pytest.fixture
 def okh_dict_partial():
     return {"title": "mock okh title."}
-
-
-@pytest.fixture
-def ok_validator():
-    return OKValidator(["bom", "title"])
 
 
 @pytest.fixture

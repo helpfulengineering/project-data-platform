@@ -1,26 +1,16 @@
 """Open knowledge validator"""
-import yaml
+import json
 from pathlib import Path
-from typing import List, Union
-from collections import namedtuple
+from typing import Type, TypeVar, Union
+from pydantic import BaseModel
+from pydantic_yaml import parse_yaml_file_as, parse_yaml_raw_as
 
-Error = namedtuple("Error", ["type", "msg"])
+T = TypeVar("T", bound=BaseModel)
 
 
 class OKValidator:
-    def __init__(self, required_fields: List[str]):
-        self.required_fields = required_fields
-
-    def _validate_yaml(self, yaml_content: dict) -> bool:
-        """Validate the YAML content to check if it contains the required fields.
-
-        Args:
-            yaml_content: The parsed yaml dictionary.
-        """
-        for field in self.required_fields:
-            if field not in yaml_content:
-                return False
-        return True
+    def __init__(self, model_type: Type[T]):
+        self.model_type = model_type
 
     def validate(self, src: Union[str, Path, dict], raise_exception=False) -> bool:
         """
@@ -33,61 +23,29 @@ class OKValidator:
         """
         if not isinstance(src, Union[str, dict, Path]):
             return self.return_value_or_error(
-                Error(
-                    ValueError,
+                ValueError(
                     "`src` should be one of the following: a string path, "
                     "a Path object, or Yaml dict",
                 ),
                 raise_exception,
             )
-
-        if isinstance(src, dict):
-            return self._validate_yaml(src)
-
-        if isinstance(src, Path):
-            src = str(src)
-
         try:
-            with open(src, "r") as yaml_file:
-                yaml_content = yaml.safe_load(yaml_file)
-                if yaml_content is None:
-                    return self.return_value_or_error(
-                        Error(
-                            ValueError,
-                            "The YAML file is empty or contains invalid syntax.",
-                        ),
-                        raise_exception,
-                    )
-                else:
-                    return self._validate_yaml(yaml_content)
-        except FileNotFoundError:
-            return self.return_value_or_error(
-                Error(
-                    FileNotFoundError,
-                    "File not found. Please provide a valid YAML " "file path.",
-                ),
-                raise_exception,
-            )
-        except yaml.YAMLError:
-            return self.return_value_or_error(
-                Error(yaml.YAMLError, "The YAML file is empty or contains invalid syntax."), raise_exception
-            )
+            if isinstance(src, dict):
+                parse_yaml_raw_as(self.model_type, json.dumps(src))
+            else:
+                parse_yaml_file_as(self.model_type, src)
+            return True
+        except Exception as err:
+            return self.return_value_or_error(err, raise_exception)
 
     @staticmethod
-    def return_value_or_error(result: Error, raise_exception: bool = False):
+    def return_value_or_error(error: Exception, raise_exception: bool = False):
         """Return a bool or raise an exception.
 
         Args:
-            result: Exception to raise.
+            error: Exception to raise.
             raise_exception: If set to true, the provided exception will be raised.
         """
         if not raise_exception:
             return False
-
-        if not isinstance(result, Error):
-            raise TypeError(
-                f"result arg needs to be of type,{type(Error)}. "
-                f"Got {type(result)} instead."
-            )
-
-        raise result.type(result.msg)
+        raise error
