@@ -1,0 +1,31 @@
+[tool.poetry]
+name="okvalidator"
+version="0.1.0"
+description="An Open Knowledge validator"
+authors = [
+    "Helpful Engineering",
+]
+readme="README.md"
+
+repository = "https://github.com/helpfulengineering/project-data-platform/tools/ok_validator"
+
+classifiers = [
+  "Intended Audience :: Developers",
+  "Topic :: Software Development :: Open Knowledge :: Supply Chain",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3 :: Only",
+]
+
+
+[tool.poetry.dependencies]
+python = "^3.7"
+pyyaml = "6.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.2.1"
